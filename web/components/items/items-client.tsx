@@ -65,9 +65,8 @@ function SignedInItems({ version, onSaved }: { version: number; onSaved: () => v
       onSaved();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save item');
-    } finally {
-      setBusy(false);
     }
+    setBusy(false);
   };
 
   return (
