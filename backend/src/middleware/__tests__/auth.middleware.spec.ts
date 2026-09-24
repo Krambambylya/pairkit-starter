@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { JWT_SECRET, findFirst } = vi.hoisted(() => ({
-  JWT_SECRET: 'unit_test_secret_at_least_32_characters_long',
+  JWT_SECRET: 'for_tests_only_not_a_real_secret',
   findFirst: vi.fn(),
 }));
 

@@ -6,8 +6,9 @@ Thanks for improving Pairkit as a starting point (clearer defaults, tests, docs)
 
 1. Fork and clone.
 2. `pnpm install`
-3. `pnpm dev:backend` (env file, Postgres, migrations, API). Docker must be installed and running.
-4. In another terminal: `pnpm typecheck && pnpm test`
+3. `pnpm setup` (gitignored env files and a local `JWT_SECRET`).
+4. `pnpm dev:backend` (Postgres, migrations, API). Docker must be installed and running.
+5. In another terminal: `pnpm typecheck && pnpm test`
 
 `pnpm test` enforces 70% coverage on workspace auth (`features/user/services`), middleware, and
 token hashing.

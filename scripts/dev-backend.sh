@@ -5,6 +5,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=jwt-secret.sh
+source "$ROOT/scripts/jwt-secret.sh"
 cd "$ROOT"
 
 if ! command -v docker >/dev/null 2>&1; then
@@ -19,8 +21,14 @@ fi
 
 ENV_FILE="$ROOT/backend/.env.dev"
 if [[ ! -f "$ENV_FILE" ]]; then
-  cp "$ROOT/backend/.env.example" "$ENV_FILE"
-  echo "Created backend/.env.dev from backend/.env.example"
+  echo "Missing backend/.env.dev. Run pnpm setup first." >&2
+  exit 1
+fi
+
+jwt_secret="$(grep -E '^JWT_SECRET=' "$ENV_FILE" | head -n 1 | cut -d= -f2- || true)"
+if is_public_jwt_secret "$jwt_secret" "$ROOT/backend/src/config/public-jwt-secrets.txt"; then
+  echo "Set JWT_SECRET in backend/.env.dev (pnpm setup writes one)." >&2
+  exit 1
 fi
 
 echo "Starting Postgres…"

@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken';
 import { describe, expect, it, vi } from 'vitest';
 
 const { JWT_SECRET } = vi.hoisted(() => ({
-  JWT_SECRET: 'unit_test_secret_at_least_32_characters_long',
+  JWT_SECRET: 'for_tests_only_not_a_real_secret',
 }));
 
 vi.mock('../../config/env-config', () => ({

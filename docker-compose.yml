@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: pairkit
       POSTGRES_DB: pairkit
     ports:
-      - '5432:5432'
+      - '127.0.0.1:5432:5432'
     volumes:
       - pairkit_pg:/var/lib/postgresql/data
     healthcheck:
@@ -23,14 +23,12 @@ services:
       dockerfile: backend/Dockerfile
     ports:
       - '4000:4000'
+    # Local container only. Production sets JWT_SECRET on the host, not from .env.dev.
+    env_file:
+      - backend/.env.dev
     environment:
-      NODE_ENV: production
-      PORT: '4000'
-      LOG_LEVEL: info
       DATABASE_URL: postgresql://pairkit:pairkit@postgres:5432/pairkit
       DIRECT_URL: postgresql://pairkit:pairkit@postgres:5432/pairkit
-      JWT_SECRET: change-me-to-at-least-32-characters
-      WHITE_LIST_URLS: http://localhost:3000,http://localhost:8081
     depends_on:
       postgres:
         condition: service_healthy

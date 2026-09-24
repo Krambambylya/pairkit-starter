@@ -28,7 +28,7 @@ jobs:
       NODE_ENV: test
       DATABASE_URL: postgresql://pairkit:pairkit@localhost:5432/pairkit_test
       DIRECT_URL: postgresql://pairkit:pairkit@localhost:5432/pairkit_test
-      JWT_SECRET: ci_only_secret_at_least_32_characters_long
+      JWT_SECRET: for_tests_only_not_a_real_secret
       WHITE_LIST_URLS: http://localhost:3000
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

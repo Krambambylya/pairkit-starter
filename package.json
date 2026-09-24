@@ -9,6 +9,7 @@
   },
   "scripts": {
     "prepare": "husky",
+    "setup": "bash scripts/setup-env.sh",
     "dev:web": "pnpm --filter web dev",
     "dev:mobile": "pnpm --filter mobile start",
     "dev:backend": "bash scripts/dev-backend.sh",
