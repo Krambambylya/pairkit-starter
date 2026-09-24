@@ -1,10 +1,13 @@
+import { randomBytes } from 'node:crypto';
+
 import { describe, expect, it } from 'vitest';
 
 import { envSchema } from '../env-schema';
+import { PUBLIC_JWT_SECRETS } from '../public-jwt-secrets';
 
 const validEnv = {
   DATABASE_URL: 'postgresql://user:pass@localhost:5432/db',
-  JWT_SECRET: 'a_secret_that_is_at_least_32_characters_long',
+  JWT_SECRET: randomBytes(32).toString('base64url'),
   WHITE_LIST_URLS: 'https://example.com,https://app.example.com',
 };
 
@@ -31,10 +34,28 @@ describe('envSchema', () => {
     expect(result.success).toBe(true);
   });
 
+  it('rejects a JWT_SECRET that repeats one character', () => {
+    const result = envSchema.safeParse({ ...validEnv, JWT_SECRET: 'a'.repeat(32) });
+
+    expect(result.success).toBe(false);
+  });
+
   it('rejects a JWT_SECRET shorter than 32 characters', () => {
     const result = envSchema.safeParse({ ...validEnv, JWT_SECRET: 'too-short' });
 
     expect(result.success).toBe(false);
+  });
+
+  it('rejects repository JWT stand-ins outside test and allows them in test', () => {
+    for (const secret of PUBLIC_JWT_SECRETS) {
+      expect(envSchema.safeParse({ ...validEnv, JWT_SECRET: secret }).success).toBe(false);
+      expect(
+        envSchema.safeParse({ ...validEnv, NODE_ENV: 'production', JWT_SECRET: secret }).success,
+      ).toBe(false);
+      expect(
+        envSchema.safeParse({ ...validEnv, NODE_ENV: 'test', JWT_SECRET: secret }).success,
+      ).toBe(true);
+    }
   });
 
   it('rejects a non-URL DATABASE_URL', () => {

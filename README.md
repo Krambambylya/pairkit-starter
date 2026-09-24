@@ -16,14 +16,25 @@ Prerequisites: Node `22.21.1` (see `.node-version`), [pnpm 11](https://pnpm.io/)
 
 ```bash
 pnpm install
+pnpm setup
 pnpm dev:backend
 pnpm dev:web
 pnpm dev:mobile
 ```
 
-`pnpm dev:backend` copies `backend/.env.dev` if missing, starts Postgres via Docker Compose, applies
-pending Prisma migrations, then runs the API. Migrations are additive: running them again does not
-wipe existing rows. Stop with Ctrl+C; Postgres keeps running until `docker compose down`.
+`pnpm setup` creates gitignored env files from the examples: `backend/.env.dev`, `web/.env.local`,
+and `mobile/.env`. It writes a random `JWT_SECRET` into `backend/.env.dev`. That value stays on your
+machine. The API refuses to start outside tests if `JWT_SECRET` is empty or one of the strings
+published in the repo (`backend/src/config/public-jwt-secrets.ts`).
+
+`pnpm dev:backend` starts Postgres via Docker Compose, applies pending Prisma migrations, then runs
+the API. Migrations are additive: running them again does not wipe existing rows. Stop with Ctrl+C;
+Postgres keeps running until `docker compose down`.
+
+The local database password in Compose is `pairkit`. Postgres listens on `127.0.0.1` only, so other
+machines on the network cannot connect to it. `docker compose --profile api` is that same local API
+inside a container: it reads `backend/.env.dev` and does not switch the process to production. A
+real deploy sets `JWT_SECRET` on the host. Run `pnpm setup` before the Compose API profile too.
 
 API defaults to `http://localhost:4000`. Web defaults to `http://localhost:3000`.
 

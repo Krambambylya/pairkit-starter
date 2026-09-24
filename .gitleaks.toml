@@ -1,9 +1,11 @@
 title = "Pairkit"
 
-[allowlist]
-description = "Documented starter placeholders, not live secrets"
+[[allowlists]]
+description = "The shared test secret, only in the files that have to contain it"
 paths = [
-  '''(^|/)backend/\.env\.example$''',
   '''(^|/)\.github/workflows/ci\.yml$''',
-  '''(^|/)docker-compose\.yml$''',
+  '''(^|/)backend/vitest\.setup\.ts$''',
+  '''(^|/)backend/src/config/public-jwt-secrets\.txt$''',
+  '''(^|/)backend/src/.*/__tests__/.*\.spec\.ts$''',
 ]
+regexes = ['''for_tests_only_not_a_real_secret''']
