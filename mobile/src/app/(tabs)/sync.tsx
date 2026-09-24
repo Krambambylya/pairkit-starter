@@ -50,9 +50,8 @@ export default function SyncScreen() {
       setStatus('Save the recovery key.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Create failed');
-    } finally {
-      setBusy(false);
     }
+    setBusy(false);
   };
 
   const onJoin = async () => {
@@ -66,9 +65,8 @@ export default function SyncScreen() {
       setStatus('Device connected');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Join failed');
-    } finally {
-      setBusy(false);
     }
+    setBusy(false);
   };
 
   const onRecover = async () => {
@@ -82,9 +80,8 @@ export default function SyncScreen() {
       setStatus('Access restored');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Recovery failed');
-    } finally {
-      setBusy(false);
     }
+    setBusy(false);
   };
 
   if (!enabled) {
