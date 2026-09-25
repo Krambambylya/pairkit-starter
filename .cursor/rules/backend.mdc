@@ -1,0 +1,14 @@
+---
+description: Backend feature layout, Zod contracts, envelope, and env
+globs: backend/**/*.ts
+alwaysApply: false
+---
+
+# Backend
+
+- Put a feature under `backend/src/features/<name>/` (routes, controllers, services, repositories).
+- Request and response shapes are Zod schemas from `@pairkit/core/api`. Do not duplicate them here.
+- Import `@pairkit/core` only as `@pairkit/core`, `@pairkit/core/api`, or `@pairkit/core/client`.
+- Return `{ success, message, data }` via `uni-response` (`unifiedResponse`).
+- Add env vars to `src/config/env-schema.ts` and `backend/.env.example` together. Other modules import `env` from `src/config/env-config.ts`.
+- Do not import `web/` or `mobile/`.

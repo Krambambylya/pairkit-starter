@@ -1,0 +1,11 @@
+---
+description: Web and mobile talk to the API only through @pairkit/core
+globs: "{web,mobile}/**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Clients
+
+- Call the API through `@pairkit/core`, `@pairkit/core/api`, or `@pairkit/core/client`.
+- Do not import `backend`, the other client, or deep paths inside `core-modules`.
+- Web supplies KV and session persistence around `createPairkitClient`. Mobile does the same with SecureStore. Do not fork the sync protocol in either app.

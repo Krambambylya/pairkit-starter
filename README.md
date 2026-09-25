@@ -105,7 +105,7 @@ in `web/proxy.ts`. Set `NEXT_PUBLIC_SITE_URL` to the real origin before a produc
 `pnpm --filter @pairkit/core build`. HTTP, item storage, and engine wiring live in
 `@pairkit/core/client`; each app supplies KV, session persistence, device name, and API base URL.
 
-## After you use this template
+## After you use this template (optional)
 
 GitHub does not copy branch rulesets. In the new repo:
 

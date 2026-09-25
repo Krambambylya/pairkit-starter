@@ -34,10 +34,6 @@ cannot be updated except through a green PR.
 
 ## Conventions
 
-- New API features live under `backend/src/features/<name>/`.
-- Shared request/response shapes belong in `@pairkit/core/api` (Zod).
-- Shared workspace HTTP, item/tombstone storage, and `createPairkitClient` belong in
-  `@pairkit/core/client`. Web and mobile should only supply KV + session persistence.
-- Workspace handlers always return `{ success, message, data }`.
-- New env vars go in `backend/src/config/env-schema.ts` and `backend/.env.example` together.
-- Do not commit secrets. `Pairkit` is the only brand token — keep it searchable.
+Invariants and the definition of done are in [AGENTS.md](./AGENTS.md).
+
+Do not commit secrets. `Pairkit` is the only brand token — keep it searchable.
