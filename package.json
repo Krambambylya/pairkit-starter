@@ -23,7 +23,8 @@
     "format:check": "prettier --check .",
     "verify:changed": "bash scripts/verify-changed.sh",
     "boundaries": "depcruise --config .dependency-cruiser.cjs backend web mobile core-modules",
-    "knip": "knip"
+    "knip": "knip",
+    "smoke:sync": "bash scripts/smoke-sync.sh"
   },
   "devDependencies": {
     "dependency-cruiser": "^18.4.0",

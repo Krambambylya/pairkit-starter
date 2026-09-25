@@ -10,16 +10,16 @@ Thanks for improving Pairkit as a starting point (clearer defaults, tests, docs)
 4. `pnpm dev:backend` (Postgres, migrations, API). Docker must be installed and running.
 5. In another terminal: `pnpm typecheck && pnpm test`
 
-`pnpm test` enforces 70% coverage on workspace auth (`features/user/services`), middleware, and
-token hashing.
+`pnpm test` enforces 70% coverage on workspace auth (`features/user/services`), item sync
+(`features/items/services`), middleware, and token hashing.
 
 ## Checks
 
-| When           | What                                                                                                                                                      |
-| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Commit         | Husky `lint-staged`: Prettier on docs/config, ESLint+Prettier on staged package files                                                                     |
-| Push           | Husky `pnpm typecheck && pnpm test`                                                                                                                       |
-| PR into `main` | Jobs `verify` (typecheck, Expo doctor, tests, lint, boundaries, knip, format, builds) and `secrets` must be green. A GitHub ruleset blocks direct pushes. |
+| When           | What                                                                                                                                                                  |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Commit         | Husky `lint-staged`: Prettier on docs/config, ESLint+Prettier on staged package files                                                                                 |
+| Push           | Husky `pnpm typecheck && pnpm test`                                                                                                                                   |
+| PR into `main` | Jobs `verify` (typecheck, Expo doctor, tests, lint, boundaries, knip, format, builds, sync smoke) and `secrets` must be green. A GitHub ruleset blocks direct pushes. |
 
 Tests that need Postgres skip if Compose is not up; CI still runs the full suite including those
 HTTP specs. Lint, format, and builds stay in Actions, not in `git commit` or `pnpm build`. pnpm 11
@@ -35,6 +35,7 @@ cannot be updated except through a green PR.
 ## Conventions
 
 Invariants and the definition of done are in [AGENTS.md](./AGENTS.md). Before handing work off, run
-`pnpm verify:changed` (typecheck, lint, and tests for packages touched in the working tree).
+`pnpm verify:changed` (typecheck, lint, and tests for packages touched in the working tree). For a
+local sync smoke with API and web already running: `pnpm smoke:sync`.
 
 Do not commit secrets. `Pairkit` is the only brand token — keep it searchable.

@@ -69,6 +69,18 @@ jobs:
           NODE_ENV: production
           NEXT_PUBLIC_API_URL: http://localhost:4000
           NEXT_PUBLIC_SITE_URL: http://localhost:3000
+          NEXT_PUBLIC_SYNC_WEB_ENABLED: 'true'
+      - name: Install Playwright Chromium
+        run: pnpm --filter web exec playwright install --with-deps chromium
+      - name: Sync smoke
+        run: pnpm smoke:sync
+        env:
+          CI: true
+          PLAYWRIGHT_API_URL: http://localhost:4000
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
+          NEXT_PUBLIC_API_URL: http://localhost:4000
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000
+          NEXT_PUBLIC_SYNC_WEB_ENABLED: 'true'
 
   secrets:
     runs-on: ubuntu-latest

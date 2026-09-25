@@ -59,6 +59,9 @@ web/.next/
 web/out/
 web/.vercel/
 web/next-env.d.ts
+web/playwright-report/
+web/test-results/
+web/blob-report/
 
 # =============================================================================
 # mobile (Expo / React Native)
