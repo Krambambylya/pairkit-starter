@@ -5,9 +5,7 @@
     "moduleResolution": "bundler",
     "customConditions": ["development"],
     "paths": {
-      "@/*": ["./src/*"],
-      "helmet": ["./node_modules/helmet/index.d.mts"],
-      "uni-response": ["./node_modules/uni-response/dist/index.d.mts"]
+      "@/*": ["./src/*"]
     },
     "types": ["node"],
     "typeRoots": ["./node_modules/@types"],

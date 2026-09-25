@@ -1,9 +1,10 @@
 import { randomUUID } from 'crypto';
 import { Request, Response } from 'express';
 import { mkdir } from 'fs/promises';
-import { join } from 'path';
+import { dirname, join } from 'path';
 import pino, { Logger } from 'pino';
 import pinoHttp from 'pino-http';
+import { fileURLToPath } from 'url';
 
 import { env } from '../config/env-config';
 
@@ -15,7 +16,7 @@ declare global {
   }
 }
 
-const logDir = join(__dirname, '..', 'logs');
+const logDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'logs');
 const logFile = join(logDir, 'app.log');
 
 void mkdir(logDir, { recursive: true }).catch(err => {

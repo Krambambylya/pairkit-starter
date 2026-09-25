@@ -22,6 +22,7 @@ export default defineConfig({
       reporter: ['text', 'html', 'lcov'],
       include: [
         'src/features/user/services/**',
+        'src/features/items/services/**',
         'src/middleware/**',
         'src/utils/generate-token.util.ts',
       ],

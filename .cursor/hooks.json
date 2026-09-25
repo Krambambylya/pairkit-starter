@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "hooks": {
+    "stop": [
+      {
+        "command": ".cursor/hooks/verify-changed.sh",
+        "timeout": 180,
+        "loop_limit": 2
+      }
+    ]
+  }
+}

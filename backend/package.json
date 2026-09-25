@@ -6,9 +6,9 @@
   "main": "index.js",
   "scripts": {
     "prebuild": "pnpm --filter @pairkit/core build && prisma generate",
-    "build": "rimraf dist && tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
+    "build": "rimraf dist && tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json && cp src/config/public-jwt-secrets.txt dist/config/",
     "prebuild:debug": "pnpm --filter @pairkit/core build",
-    "build:debug": "rimraf dist && tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
+    "build:debug": "rimraf dist && tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json && cp src/config/public-jwt-secrets.txt dist/config/",
     "start": "node --enable-source-maps dist/server.js",
     "dev": "nodemon --ext ts --exec tsx --conditions=development src/server.ts",
     "debug": "pnpm run build:debug && node --enable-source-maps --inspect-brk dist/server.js",

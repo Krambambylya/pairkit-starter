@@ -1,0 +1,13 @@
+---
+description: Pairkit package boundaries and definition of done
+alwaysApply: true
+---
+
+# Architecture
+
+- API schema in `@pairkit/core` (`.`, `./api`, `./client` only). Handler in `backend/src/features/<name>/`.
+- `web`, `mobile`, and `backend` do not import each other. `core-modules` imports none of them.
+- New env: `backend/src/config/env-schema.ts` and `backend/.env.example` together. Read `env`, not `process.env`.
+- Workspace responses are `{ success, message, data }`.
+- New behavior includes a test. Done means `pnpm verify:changed` is green. UI changes are checked in the browser.
+- Do not add cross-feature imports. The existing `features/items` → `features/user` `WorkspaceRepository` import stays.

@@ -1,0 +1,28 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "workspaces": {
+    "backend": {
+      "entry": ["src/server.ts"],
+      "project": ["src/**/*.ts", "!src/generated/**"],
+      "ignoreDependencies": ["@prisma/client", "@tsconfig/node20", "pino-pretty"]
+    },
+    "web": {
+      "ignore": ["lib/workspace-sync/index.ts"]
+    },
+    "mobile": {
+      "ignoreDependencies": ["@expo/vector-icons", "expo-symbols", "expo-system-ui", "expo-updates"]
+    }
+  },
+  "ignoreIssues": {
+    "backend/src/config/public-jwt-secrets.ts": ["exports"],
+    "backend/src/middleware/auth.middleware.ts": ["exports"],
+    "backend/src/middleware/pino-logger.ts": ["exports"],
+    "mobile/src/constants/theme.ts": ["exports", "types"],
+    "mobile/src/features/workspace-sync/index.ts": ["exports"],
+    "mobile/src/features/workspace-sync/model/client.ts": ["exports"],
+    "mobile/src/features/workspace-sync/model/session-storage.ts": ["types"],
+    "web/components/ui/confirm-dialog.tsx": ["exports"],
+    "web/lib/workspace-sync/client.ts": ["exports"],
+    "web/lib/workspace-sync/session.ts": ["exports", "types"]
+  }
+}
