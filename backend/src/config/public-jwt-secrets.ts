@@ -1,10 +1,13 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const configDir = dirname(fileURLToPath(import.meta.url));
 
 function secretsFilePath(): string {
   const candidates = [
-    join(__dirname, 'public-jwt-secrets.txt'),
-    join(__dirname, '../../src/config/public-jwt-secrets.txt'),
+    join(configDir, 'public-jwt-secrets.txt'),
+    join(configDir, '../../src/config/public-jwt-secrets.txt'),
   ];
   const found = candidates.find(path => existsSync(path));
   if (!found) {
