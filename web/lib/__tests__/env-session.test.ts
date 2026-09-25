@@ -4,7 +4,10 @@ import { unwrapEnvelope } from '@pairkit/core/api';
 import { defaultWorkspaceSession } from '@pairkit/core/client';
 
 import { envSchema } from '../env';
-import { writeWorkspaceSession } from '../workspace-sync/session';
+import {
+  getServerWorkspaceSessionSnapshot,
+  writeWorkspaceSession,
+} from '../workspace-sync/session';
 
 describe('envSchema', () => {
   it('rejects example.com in production', () => {
@@ -35,6 +38,12 @@ describe('unwrapEnvelope', () => {
 
   it('throws the envelope message when unsuccessful', () => {
     expect(() => unwrapEnvelope({ success: false, message: 'nope' })).toThrow('nope');
+  });
+});
+
+describe('useWorkspaceSession SSR snapshot', () => {
+  it('returns a stable reference for getServerSnapshot', () => {
+    expect(getServerWorkspaceSessionSnapshot()).toBe(getServerWorkspaceSessionSnapshot());
   });
 });
 

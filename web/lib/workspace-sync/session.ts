@@ -34,5 +34,11 @@ export const writeWorkspaceSession = store.write;
 export const patchWorkspaceSession = store.patch;
 export const clearWorkspaceSession = store.clear;
 
+/** Stable SSR snapshot — React requires getServerSnapshot to return the same reference. */
+const serverWorkspaceSessionSnapshot = defaultWorkspaceSession();
+
+export const getServerWorkspaceSessionSnapshot = (): WorkspaceSession =>
+  serverWorkspaceSessionSnapshot;
+
 export const useWorkspaceSession = (): WorkspaceSession =>
-  useSyncExternalStore(store.subscribe, store.getSnapshot, defaultWorkspaceSession);
+  useSyncExternalStore(store.subscribe, store.getSnapshot, getServerWorkspaceSessionSnapshot);
