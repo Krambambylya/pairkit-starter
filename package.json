@@ -21,10 +21,14 @@
     "lint": "pnpm -r --if-present lint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "verify:changed": "bash scripts/verify-changed.sh"
+    "verify:changed": "bash scripts/verify-changed.sh",
+    "boundaries": "depcruise --config .dependency-cruiser.cjs backend web mobile core-modules",
+    "knip": "knip"
   },
   "devDependencies": {
+    "dependency-cruiser": "^18.4.0",
     "husky": "^9.1.7",
+    "knip": "^6.38.0",
     "lint-staged": "^16.4.0",
     "prettier": "^3.9.5"
   },

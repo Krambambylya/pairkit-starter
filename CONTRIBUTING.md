@@ -15,11 +15,11 @@ token hashing.
 
 ## Checks
 
-| When           | What                                                                                                                                    |
-| -------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| Commit         | Husky `lint-staged`: Prettier on docs/config, ESLint+Prettier on staged package files                                                   |
-| Push           | Husky `pnpm typecheck && pnpm test`                                                                                                     |
-| PR into `main` | Jobs `verify` (typecheck, Expo doctor, tests, lint, format, builds) and `secrets` must be green. A GitHub ruleset blocks direct pushes. |
+| When           | What                                                                                                                                                      |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Commit         | Husky `lint-staged`: Prettier on docs/config, ESLint+Prettier on staged package files                                                                     |
+| Push           | Husky `pnpm typecheck && pnpm test`                                                                                                                       |
+| PR into `main` | Jobs `verify` (typecheck, Expo doctor, tests, lint, boundaries, knip, format, builds) and `secrets` must be green. A GitHub ruleset blocks direct pushes. |
 
 Tests that need Postgres skip if Compose is not up; CI still runs the full suite including those
 HTTP specs. Lint, format, and builds stay in Actions, not in `git commit` or `pnpm build`. pnpm 11
