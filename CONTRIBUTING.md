@@ -34,6 +34,7 @@ cannot be updated except through a green PR.
 
 ## Conventions
 
-Invariants and the definition of done are in [AGENTS.md](./AGENTS.md).
+Invariants and the definition of done are in [AGENTS.md](./AGENTS.md). Before handing work off, run
+`pnpm verify:changed` (typecheck, lint, and tests for packages touched in the working tree).
 
 Do not commit secrets. `Pairkit` is the only brand token — keep it searchable.

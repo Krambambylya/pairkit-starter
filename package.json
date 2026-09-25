@@ -20,7 +20,8 @@
     "typecheck": "pnpm -r --if-present typecheck",
     "lint": "pnpm -r --if-present lint",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "verify:changed": "bash scripts/verify-changed.sh"
   },
   "devDependencies": {
     "husky": "^9.1.7",
