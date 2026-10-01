@@ -211,6 +211,7 @@ export class WorkspaceService {
     const expiresAt = new Date(Date.now() + durationToMs(PAIRING_CODE_EXPIRES_IN));
 
     await this.prisma.$transaction(async tx => {
+      await this.workspaceRepository.touchLastUsedAt(workspaceId, tx);
       await this.pairingCodeRepository.invalidateUnusedForWorkspace(workspaceId, tx);
       await this.pairingCodeRepository.create(
         {
@@ -220,7 +221,6 @@ export class WorkspaceService {
         },
         tx,
       );
-      await this.workspaceRepository.touchLastUsedAt(workspaceId, tx);
     });
 
     return {

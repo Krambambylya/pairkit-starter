@@ -31,28 +31,70 @@ export class ItemSyncService {
     await this.workspaceRepository.touchLastUsedAt(workspaceId);
   }
 
-  private async applyClientItem(workspaceId: string, item: Item): Promise<boolean> {
-    const existing = await this.itemRepository.findGlobalById(item.id);
+  /**
+   * One transaction for the whole batch: lock the workspace, read every id once,
+   * count live rows once, then write only the rows that still pass.
+   */
+  private async applyClientItems(workspaceId: string, items: Item[]): Promise<string[]> {
+    const { acceptedIds, limitExceeded } = await this.itemRepository.withTransaction(async db => {
+      await this.workspaceRepository.touchLastUsedAt(workspaceId, db);
 
-    if (existing && existing.workspaceId !== workspaceId) {
-      throw new AccessForbiddenError();
-    }
+      const existingRows = await this.itemRepository.findGlobalByIds(
+        items.map(item => item.id),
+        db,
+      );
+      const existingById = new Map(existingRows.map(row => [row.id, row]));
 
-    const clientUpdated = toTime(item.updatedAt);
-
-    if (existing) {
-      if (clientUpdated < existing.updatedAt.getTime()) {
-        return false;
+      for (const item of items) {
+        const existing = existingById.get(item.id);
+        if (existing && existing.workspaceId !== workspaceId) {
+          throw new AccessForbiddenError();
+        }
       }
-    } else if (!item.deletedAt) {
-      const liveCount = await this.itemRepository.countLive(workspaceId);
-      if (liveCount >= MAX_ITEMS_PER_WORKSPACE) {
-        throw new ItemLimitExceededError();
-      }
-    }
 
-    await this.itemRepository.upsertSavedItem(workspaceId, item);
-    return true;
+      const liveCount = await this.itemRepository.countLive(workspaceId, db);
+      let addedLive = 0;
+      const toWrite: Item[] = [];
+      let limitExceeded = false;
+
+      for (const item of items) {
+        const existing = existingById.get(item.id);
+        const clientUpdated = toTime(item.updatedAt);
+
+        if (existing && clientUpdated < existing.updatedAt.getTime()) continue;
+
+        const wasLive = existing ? existing.deletedAt === null : false;
+        const willBeLive = !item.deletedAt;
+        if (!wasLive && willBeLive) {
+          if (liveCount + addedLive >= MAX_ITEMS_PER_WORKSPACE) {
+            limitExceeded = true;
+            break;
+          }
+          addedLive += 1;
+        } else if (wasLive && !willBeLive) {
+          addedLive -= 1;
+        }
+
+        toWrite.push(item);
+        existingById.set(item.id, {
+          id: item.id,
+          workspaceId,
+          updatedAt: new Date(item.updatedAt),
+          deletedAt: item.deletedAt ? new Date(item.deletedAt) : null,
+        });
+      }
+
+      const acceptedIds: string[] = [];
+      for (const item of toWrite) {
+        const written = await this.itemRepository.saveIfCurrent(workspaceId, item, db);
+        if (written) acceptedIds.push(item.id);
+      }
+
+      return { acceptedIds, limitExceeded };
+    });
+
+    if (limitExceeded) throw new ItemLimitExceededError();
+    return acceptedIds;
   }
 
   async list(workspaceId: string): Promise<ListItemsPayload> {
@@ -64,20 +106,14 @@ export class ItemSyncService {
   }
 
   async upsert(workspaceId: string, item: Item): Promise<UpsertItemPayload> {
-    await this.applyClientItem(workspaceId, item);
-    await this.touch(workspaceId);
+    await this.applyClientItems(workspaceId, [item]);
     const rows = await this.itemRepository.findByIds(workspaceId, [item.id]);
     const saved = rows[0] ? this.itemRepository.toDto(rows[0]) : item;
     return { item: saved };
   }
 
   async bootstrap(workspaceId: string, input: BootstrapItemsInput): Promise<BootstrapItemsPayload> {
-    const acceptedIds: string[] = [];
-    for (const item of input.items) {
-      const written = await this.applyClientItem(workspaceId, item);
-      if (written) acceptedIds.push(item.id);
-    }
-    await this.touch(workspaceId);
+    const acceptedIds = await this.applyClientItems(workspaceId, input.items);
     return {
       acceptedIds,
       cursor: input.cursor ?? null,
@@ -141,12 +177,7 @@ export class ItemSyncService {
   }
 
   async push(workspaceId: string, input: PushItemsInput): Promise<PushItemsPayload> {
-    const acceptedIds: string[] = [];
-    for (const item of input.items) {
-      const written = await this.applyClientItem(workspaceId, item);
-      if (written) acceptedIds.push(item.id);
-    }
-    await this.touch(workspaceId);
+    const acceptedIds = await this.applyClientItems(workspaceId, input.items);
     return { acceptedIds };
   }
 }

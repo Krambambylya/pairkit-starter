@@ -16,3 +16,5 @@ description: >-
 6. If the change touches `web/` or `mobile/`, run `npx react-doctor@latest --verbose --scope changed` and fix any new errors before finishing. Do not add react-doctor to CI.
 
 React or React Native performance work: open `.cursor/skills/vercel-react-best-practices/SKILL.md` or `.cursor/skills/vercel-react-native-skills/SKILL.md` and the matching rule files. The compiled guides are `guide.md` in those folders.
+
+Database work (Prisma, repositories, queries, transactions, `backend/prisma/`): open `.cursor/skills/database/SKILL.md` before writing the query. Follow `.cursor/rules/database.mdc`.

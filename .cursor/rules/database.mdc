@@ -1,0 +1,26 @@
+---
+description: Postgres access through Prisma — batch reads, transactions, conditional writes
+globs: backend/{src,prisma}/**/*.{ts,prisma,sql}
+alwaysApply: false
+---
+
+# Database
+
+Postgres through Prisma. A repository method takes `DbClient` so the service can pass a transaction. Open `.cursor/skills/database/SKILL.md` before changing queries, transactions, or the schema.
+
+- Do not `await` a query inside a loop over a batch. Read the ids once (`in`), count once, decide in memory, then write. A per-row lookup is a defect, including when the batch is small.
+- A batch of writes is one transaction. Lock the parent row before a count that must stay true (`touchLastUsedAt` on the workspace).
+- "Still current" belongs in the write: `updateMany` where `updatedAt` is less than or equal to the client value. Insert only when that matches nothing.
+- One-time claims (refresh token, pairing code) are a conditional `updateMany`. Trust `count`, not a prior read.
+- A throw inside `$transaction` rolls the transaction back. Commit side effects that must stick (revoke on replay, rows that fit under the limit), then throw the domain error after it returns.
+- Store hashes, not secrets. Ship the index with the column: foreign keys and list filters (`workspaceId`, `updatedAt`).
+
+```ts
+// defect: one lookup and one write per row
+for (const item of items) {
+  await repo.findById(item.id);
+  await repo.upsert(item);
+}
+
+// batch: findGlobalByIds + countLive + saveIfCurrent inside withTransaction
+```
