@@ -25,9 +25,7 @@ const workspaceRepository = {
 };
 
 const pairingCodeRepository = {
-  findByPairingCodeHash: vi.fn(),
   claimUnusedByHash: vi.fn(),
-  markUsed: vi.fn(),
   invalidateUnusedForWorkspace: vi.fn(),
   create: vi.fn(),
 };
@@ -42,9 +40,7 @@ const refreshTokenRepository = {
   create: vi.fn(),
   findByHash: vi.fn(),
   findById: vi.fn(),
-  findValidByHash: vi.fn(),
   claimValidById: vi.fn(),
-  revokeById: vi.fn(),
   revokeAllForDevice: vi.fn(),
 };
 
@@ -213,5 +209,23 @@ describe('WorkspaceService', () => {
       InvalidRefreshTokenError,
     );
     expect(deviceRepository.revoke).toHaveBeenCalledWith('dev-1', expect.anything());
+  });
+
+  it('issuePairingCode locks the workspace before replacing unused codes', async () => {
+    const order: string[] = [];
+    workspaceRepository.touchLastUsedAt.mockImplementation(async () => {
+      order.push('lock');
+    });
+    pairingCodeRepository.invalidateUnusedForWorkspace.mockImplementation(async () => {
+      order.push('invalidate');
+    });
+    pairingCodeRepository.create.mockImplementation(async () => {
+      order.push('create');
+    });
+
+    const result = await service.issuePairingCode('ws-1');
+
+    expect(order).toEqual(['lock', 'invalidate', 'create']);
+    expect(result).toMatchObject({ pairingCode: '123456' });
   });
 });

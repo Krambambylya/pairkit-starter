@@ -24,7 +24,7 @@ export class RefreshTokenRepository {
   }
 
   async findByHash(tokenHash: string) {
-    return this.prisma.refreshToken.findFirst({
+    return this.prisma.refreshToken.findUnique({
       where: { tokenHash },
       select: {
         id: true,
@@ -32,39 +32,6 @@ export class RefreshTokenRepository {
         deviceId: true,
         revokedAt: true,
         expiresAt: true,
-        device: {
-          select: {
-            id: true,
-            name: true,
-            revokedAt: true,
-          },
-        },
-      },
-    });
-  }
-
-  async findValidByHash(tokenHash: string) {
-    return this.prisma.refreshToken.findFirst({
-      where: {
-        tokenHash,
-        revokedAt: null,
-        expiresAt: { gt: new Date() },
-      },
-      select: {
-        id: true,
-        workspaceId: true,
-        expiresAt: true,
-        workspace: {
-          select: {
-            id: true,
-          },
-        },
-        device: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
       },
     });
   }
@@ -80,14 +47,6 @@ export class RefreshTokenRepository {
       data: { revokedAt: new Date() },
     });
     return result.count;
-  }
-
-  async revokeById(id: string, db: DbClient = this.prisma) {
-    return db.refreshToken.update({
-      where: { id },
-      data: { revokedAt: new Date() },
-      select: { id: true },
-    });
   }
 
   async revokeAllForDevice(deviceId: string, db: DbClient = this.prisma): Promise<void> {

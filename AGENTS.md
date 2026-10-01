@@ -29,3 +29,7 @@ imports, and do not refactor that one in passing.
 
 React and React Native performance guides are skills. Open them when the change is in `web/` or
 `mobile/`. They are not part of every task.
+
+Database access is a skill. Open `.cursor/skills/database/SKILL.md` when the change touches Prisma,
+repositories, queries, transactions, or `backend/prisma/`. The short rule is
+`.cursor/rules/database.mdc`.
