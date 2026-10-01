@@ -155,7 +155,7 @@ export class WorkspaceService {
       throw new InvalidRefreshTokenError();
     }
 
-    return this.prisma.$transaction(async tx => {
+    const rotated = await this.prisma.$transaction(async tx => {
       const claimed = await this.refreshTokenRepository.claimValidById(stored.id, tx);
       if (claimed === 0) {
         const latest = await this.refreshTokenRepository.findById(stored.id, tx);
@@ -163,7 +163,7 @@ export class WorkspaceService {
           await this.deviceRepository.revoke(stored.deviceId, tx);
           await this.refreshTokenRepository.revokeAllForDevice(stored.deviceId, tx);
         }
-        throw new InvalidRefreshTokenError();
+        return null;
       }
 
       const device = await this.deviceRepository.findActive(
@@ -172,7 +172,7 @@ export class WorkspaceService {
         tx,
       );
       if (!device) {
-        throw new InvalidRefreshTokenError();
+        return null;
       }
 
       const accessToken = generateAccessToken({
@@ -197,6 +197,12 @@ export class WorkspaceService {
 
       return { accessToken, refreshToken };
     });
+
+    if (!rotated) {
+      throw new InvalidRefreshTokenError();
+    }
+
+    return rotated;
   }
 
   async issuePairingCode(workspaceId: string): Promise<PairingCodePayload> {

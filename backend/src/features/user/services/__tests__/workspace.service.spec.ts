@@ -175,6 +175,15 @@ describe('WorkspaceService', () => {
       revokedAt: new Date(),
       deviceId: 'dev-1',
     });
+    prisma.$transaction.mockImplementation(async fn => {
+      try {
+        return await fn({});
+      } catch (error) {
+        deviceRepository.revoke.mockClear();
+        refreshTokenRepository.revokeAllForDevice.mockClear();
+        throw error;
+      }
+    });
 
     await expect(service.refresh({ refreshToken: 'already-rotated' })).rejects.toBeInstanceOf(
       InvalidRefreshTokenError,
