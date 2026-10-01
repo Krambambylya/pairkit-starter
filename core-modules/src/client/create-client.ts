@@ -1,9 +1,9 @@
 import type { Item } from '../api/item';
 import { createSyncEngine, type SyncSession } from '../sync-engine';
 
-import { createWorkspaceApi, type WorkspaceApiDeps } from './api';
 import { createItemsStorage } from './items-storage';
 import type { JsonKvStore } from './kv';
+import { createPairkitRpc, type PairkitRpcDeps } from './orpc';
 import { createTombstoneStorage } from './tombstones';
 
 export type PairkitClientDeps<TSession extends SyncSession = SyncSession> = {
@@ -15,7 +15,7 @@ export type PairkitClientDeps<TSession extends SyncSession = SyncSession> = {
     clearSession: () => Promise<void>;
   };
   getBaseUrl: () => string;
-  fetch?: WorkspaceApiDeps['fetch'];
+  fetch?: PairkitRpcDeps['fetch'];
 };
 
 export const createPairkitClient = <TSession extends SyncSession = SyncSession>(
@@ -23,7 +23,7 @@ export const createPairkitClient = <TSession extends SyncSession = SyncSession>(
 ) => {
   const items = createItemsStorage(deps.kv);
   const tombstones = createTombstoneStorage(deps.kv);
-  const api = createWorkspaceApi({
+  const client = createPairkitRpc({
     getBaseUrl: deps.getBaseUrl,
     getSession: deps.session.getSession,
     patchSession: patch => deps.session.patchSession(patch as Partial<TSession>),
@@ -32,7 +32,7 @@ export const createPairkitClient = <TSession extends SyncSession = SyncSession>(
 
   const engine = createSyncEngine<Item, TSession>({
     deviceName: deps.deviceName,
-    api,
+    api: client,
     storage: {
       getSavedItems: items.getSavedItems,
       writeItems: items.writeItems,
@@ -47,10 +47,8 @@ export const createPairkitClient = <TSession extends SyncSession = SyncSession>(
   });
 
   return {
+    client,
     ...engine,
-    listItems: api.listItems,
-    upsertItem: api.upsertItem,
-    refreshTokens: api.refreshTokens,
     getSavedItems: items.getSavedItems,
     upsertLocalItem: items.upsertLocalItem,
   };

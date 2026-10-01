@@ -74,8 +74,9 @@ mobile/expo-env.d.ts
 mobile/.kotlin/
 mobile/.metro-health-check*
 
-# Working notes for extracting this starter — not part of the public tree
+# Working notes — not part of the public tree
 PLAN.md
+ORPC-PLAN.md
 
 # Native signing / credentials
 *.orig.*

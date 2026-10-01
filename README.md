@@ -58,9 +58,12 @@ web/            Next.js (`/`, `/sync`, `/items`)
 mobile/         Expo (Home / Sync / Settings + Items)
 ```
 
-Web and mobile never import each other. Both talk to the API through `@pairkit/core`. Backend
-validates the same Zod schemas. Envelope is `{ success, message, data }`. Auth is Bearer tokens in
-JSON (SecureStore on mobile, localStorage on web — **XSS on the web origin can read those tokens**).
+Web and mobile never import each other. Both talk to the API through `@pairkit/core`. The contract
+is oRPC: Zod schemas in `@pairkit/core/api`, handlers on the backend, `RPCLink` in
+`@pairkit/core/client`. Auth is Bearer tokens in JSON (SecureStore on mobile, localStorage on web —
+**XSS on the web origin can read those tokens**). oRPC is pinned to `2.0.0-beta.40` because a stable
+v2 release is not out yet. The rate limiter counts inside one API process; two processes do not
+share a counter.
 
 ## Drop a platform
 
@@ -81,21 +84,23 @@ stays as long as any app or the API still imports `@pairkit/core`.
 
 ## Example slice (optional)
 
-Pairing is how the starter proves types and auth across packages. Endpoints:
+Pairing is how the starter proves types and auth across packages. Clients call procedures on `/rpc`:
 
-| Method | Path                                       | Notes                                          |
-| ------ | ------------------------------------------ | ---------------------------------------------- |
-| POST   | `/v1/workspaces/create`                    | Recovery key, pairing code, token pair         |
-| POST   | `/v1/workspaces/join`                      | 6-digit code (single-use, transactional claim) |
-| POST   | `/v1/workspaces/recover`                   | Long-lived recovery key                        |
-| POST   | `/v1/workspaces/refresh`                   | Rotate refresh; reuse revokes the device       |
-| POST   | `/v1/workspaces/pairing-code`              | Auth required                                  |
-| GET    | `/v1/items`                                | Auth required                                  |
-| POST   | `/v1/items`                                | Upsert one item                                |
-| POST   | `/v1/items/{bootstrap,manifest,pull,push}` | Sync-engine protocol                           |
+| Procedure                    | Notes                                          |
+| ---------------------------- | ---------------------------------------------- |
+| `workspace.create`           | Recovery key, pairing code, token pair         |
+| `workspace.join`             | 6-digit code (single-use, transactional claim) |
+| `workspace.recover`          | Long-lived recovery key                        |
+| `workspace.refresh`          | Rotate refresh; reuse revokes the device       |
+| `workspace.issuePairingCode` | Auth required                                  |
+| `items.list`                 | Auth required                                  |
+| `items.upsert`               | Upsert one item                                |
+| `items.bootstrap`            | Sync-engine upload chunk                       |
+| `items.manifest`             | Sync-engine diff                               |
+| `items.pull` / `items.push`  | Sync-engine transfer                           |
 
-Probes: `GET /live` (process up), `GET /ready` and `/health` (Prisma ping). Responses include
-`X-Request-Id`.
+Probes: `GET /live` (process up), `GET /ready` and `/health` (Prisma ping). They return plain JSON
+(`{ status: 'ok' }` or `{ status: 'degraded' }`) and include `X-Request-Id`.
 
 Behind a reverse proxy set `TRUST_PROXY` to the hop count (for example `1` on Render). Optional
 traces: `OTEL_EXPORTER_OTLP_ENDPOINT`. Production web CSP is a per-request nonce + `strict-dynamic`
@@ -103,7 +108,8 @@ in `web/proxy.ts`. Set `NEXT_PUBLIC_SITE_URL` to the real origin before a produc
 
 `@pairkit/core` is source for Next, Expo, and `tsx`. Production Node loads `dist` after
 `pnpm --filter @pairkit/core build`. HTTP, item storage, and engine wiring live in
-`@pairkit/core/client`; each app supplies KV, session persistence, device name, and API base URL.
+`@pairkit/core/client`; each app supplies KV, session persistence, device name, API base URL, and
+`fetch` (the web global, or `expo/fetch` on mobile).
 
 ## After you use this template (optional)
 

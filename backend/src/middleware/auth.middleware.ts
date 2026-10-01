@@ -1,25 +1,14 @@
-import { NextFunction, Request, Response } from 'express';
 import jwt, { Secret } from 'jsonwebtoken';
-import { unifiedResponse } from 'uni-response';
 
 import { env } from '../config/env-config';
 import { PrismaService } from '../config/prisma.config';
-import { ERROR } from '../constants/messages';
+import type { AccessPrincipal } from '../rpc-context';
 
 const secret: Secret = env.JWT_SECRET as string;
 
 interface AuthPayload {
   workspaceId: string;
   deviceId: string;
-}
-
-declare global {
-  namespace Express {
-    interface Request {
-      workspaceId?: string;
-      deviceId?: string;
-    }
-  }
 }
 
 const verifyAccessToken = (token: string): AuthPayload | null => {
@@ -34,7 +23,7 @@ const verifyAccessToken = (token: string): AuthPayload | null => {
   }
 };
 
-export const findActiveDevice = async (workspaceId: string, deviceId: string): Promise<boolean> => {
+const findActiveDevice = async (workspaceId: string, deviceId: string): Promise<boolean> => {
   const device = await PrismaService.getInstance().client.device.findFirst({
     where: { id: deviceId, workspaceId, revokedAt: null },
     select: { id: true },
@@ -42,39 +31,19 @@ export const findActiveDevice = async (workspaceId: string, deviceId: string): P
   return Boolean(device);
 };
 
-class AuthService {
-  private readAccessToken(req: Request): string | undefined {
-    return req.headers.authorization?.startsWith('Bearer ')
-      ? req.headers.authorization.slice('Bearer '.length)
-      : undefined;
-  }
+export const authenticateAccessToken = async (
+  authorizationHeader: string | undefined,
+): Promise<AccessPrincipal | null> => {
+  const token = authorizationHeader?.startsWith('Bearer ')
+    ? authorizationHeader.slice('Bearer '.length)
+    : undefined;
+  if (!token) return null;
 
-  public async auth(req: Request, res: Response, next: NextFunction): Promise<void> {
-    const token = this.readAccessToken(req);
+  const decoded = verifyAccessToken(token);
+  if (!decoded) return null;
 
-    if (!token) {
-      res.status(401).json(unifiedResponse(false, ERROR.UNAUTHORIZED));
-      return;
-    }
+  const active = await findActiveDevice(decoded.workspaceId, decoded.deviceId);
+  if (!active) return null;
 
-    const decodedToken = verifyAccessToken(token);
-    if (!decodedToken) {
-      res.status(401).json(unifiedResponse(false, ERROR.UNAUTHORIZED));
-      return;
-    }
-
-    const active = await findActiveDevice(decodedToken.workspaceId, decodedToken.deviceId);
-    if (!active) {
-      res.status(401).json(unifiedResponse(false, ERROR.UNAUTHORIZED));
-      return;
-    }
-
-    req.workspaceId = decodedToken.workspaceId;
-    req.deviceId = decodedToken.deviceId;
-    next();
-  }
-}
-
-const authService = new AuthService();
-
-export const auth = authService.auth.bind(authService);
+  return { workspaceId: decoded.workspaceId, deviceId: decoded.deviceId };
+};

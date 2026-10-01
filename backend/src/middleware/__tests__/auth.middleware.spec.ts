@@ -1,4 +1,3 @@
-import { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -21,86 +20,52 @@ vi.mock('../../config/prisma.config', () => ({
   },
 }));
 
-import { auth } from '../auth.middleware';
+import { authenticateAccessToken } from '../auth.middleware';
 
-describe('auth middleware', () => {
-  let req: Partial<Request>;
-  let res: Partial<Response>;
-  let next: NextFunction;
-
+describe('authenticateAccessToken', () => {
   beforeEach(() => {
-    req = { headers: {} };
-    res = { status: vi.fn().mockReturnThis(), json: vi.fn() };
-    next = vi.fn();
     findFirst.mockReset();
     findFirst.mockResolvedValue({ id: 'dev-1' });
   });
 
-  describe('auth', () => {
-    it('rejects requests with no token', async () => {
-      await auth(req as Request, res as Response, next);
+  it('rejects a missing token', async () => {
+    await expect(authenticateAccessToken(undefined)).resolves.toBeNull();
+  });
 
-      expect(res.status).toHaveBeenCalledWith(401);
-      expect(next).not.toHaveBeenCalled();
+  it('rejects an invalid token', async () => {
+    await expect(authenticateAccessToken('Bearer not-a-real-token')).resolves.toBeNull();
+  });
+
+  it('rejects tokens without workspace claims', async () => {
+    const token = jwt.sign({ userId: 'user-1' }, JWT_SECRET, { algorithm: 'HS256' });
+    await expect(authenticateAccessToken(`Bearer ${token}`)).resolves.toBeNull();
+  });
+
+  it('returns workspaceId and deviceId for a valid bearer token', async () => {
+    const token = jwt.sign({ workspaceId: 'ws-1', deviceId: 'dev-1' }, JWT_SECRET, {
+      algorithm: 'HS256',
     });
 
-    it('rejects an invalid token', async () => {
-      req.headers = { authorization: 'Bearer not-a-real-token' };
+    await expect(authenticateAccessToken(`Bearer ${token}`)).resolves.toEqual({
+      workspaceId: 'ws-1',
+      deviceId: 'dev-1',
+    });
+  });
 
-      await auth(req as Request, res as Response, next);
-
-      expect(res.status).toHaveBeenCalledWith(401);
-      expect(next).not.toHaveBeenCalled();
+  it('rejects a valid jwt whose device has been revoked', async () => {
+    findFirst.mockResolvedValue(null);
+    const token = jwt.sign({ workspaceId: 'ws-1', deviceId: 'dev-1' }, JWT_SECRET, {
+      algorithm: 'HS256',
     });
 
-    it('rejects tokens without workspace claims', async () => {
-      const token = jwt.sign({ userId: 'user-1' }, JWT_SECRET, { algorithm: 'HS256' });
-      req.headers = { authorization: `Bearer ${token}` };
+    await expect(authenticateAccessToken(`Bearer ${token}`)).resolves.toBeNull();
+  });
 
-      await auth(req as Request, res as Response, next);
-
-      expect(res.status).toHaveBeenCalledWith(401);
-      expect(next).not.toHaveBeenCalled();
+  it('does not read a token that is not a bearer header', async () => {
+    const token = jwt.sign({ workspaceId: 'ws-2', deviceId: 'dev-2' }, JWT_SECRET, {
+      algorithm: 'HS256',
     });
 
-    it('attaches workspaceId/deviceId and calls next for a valid bearer token', async () => {
-      const token = jwt.sign({ workspaceId: 'ws-1', deviceId: 'dev-1' }, JWT_SECRET, {
-        algorithm: 'HS256',
-      });
-      req.headers = { authorization: `Bearer ${token}` };
-
-      await auth(req as Request, res as Response, next);
-
-      expect(req.workspaceId).toBe('ws-1');
-      expect(req.deviceId).toBe('dev-1');
-      expect(next).toHaveBeenCalled();
-      expect(res.status).not.toHaveBeenCalled();
-    });
-
-    it('rejects a valid jwt whose device has been revoked', async () => {
-      findFirst.mockResolvedValue(null);
-      const token = jwt.sign({ workspaceId: 'ws-1', deviceId: 'dev-1' }, JWT_SECRET, {
-        algorithm: 'HS256',
-      });
-      req.headers = { authorization: `Bearer ${token}` };
-
-      await auth(req as Request, res as Response, next);
-
-      expect(res.status).toHaveBeenCalledWith(401);
-      expect(next).not.toHaveBeenCalled();
-    });
-
-    it('does not accept tokens from cookies', async () => {
-      const token = jwt.sign({ workspaceId: 'ws-2', deviceId: 'dev-2' }, JWT_SECRET, {
-        algorithm: 'HS256',
-      });
-      req.headers = {};
-      (req as { cookies?: { accessToken: string } }).cookies = { accessToken: token };
-
-      await auth(req as Request, res as Response, next);
-
-      expect(res.status).toHaveBeenCalledWith(401);
-      expect(next).not.toHaveBeenCalled();
-    });
+    await expect(authenticateAccessToken(token)).resolves.toBeNull();
   });
 });

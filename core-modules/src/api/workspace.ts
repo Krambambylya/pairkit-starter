@@ -1,7 +1,5 @@
 import { z } from 'zod';
 
-import type { ApiEnvelope } from './envelope';
-
 export const createWorkspaceSchema = z.object({
   deviceName: z.string().trim().min(1).max(120),
 });
@@ -52,8 +50,3 @@ export type RecoverWorkspaceInput = z.infer<typeof recoverWorkspaceSchema>;
 export type CreateWorkspaceResult = z.infer<typeof createWorkspaceResultSchema>;
 export type TokenPair = z.infer<typeof tokenPairSchema>;
 export type PairingCodePayload = z.infer<typeof pairingCodePayloadSchema>;
-
-export type CreateWorkspaceEnvelope = ApiEnvelope<CreateWorkspaceResult>;
-export type TokenPairEnvelope = ApiEnvelope<TokenPair>;
-export type RefreshEnvelope = ApiEnvelope<TokenPair>;
-export type IssuePairingCodeEnvelope = ApiEnvelope<PairingCodePayload>;

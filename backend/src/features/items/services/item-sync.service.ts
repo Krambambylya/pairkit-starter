@@ -1,15 +1,20 @@
 import type {
   BootstrapItemsInput,
+  BootstrapItemsPayload,
   Item,
   ItemManifestEntry,
+  ListItemsPayload,
+  ManifestDiff,
   ManifestItemsInput,
   PullItemsInput,
+  PullItemsPayload,
   PushItemsInput,
+  PushItemsPayload,
+  UpsertItemPayload,
 } from '@pairkit/core/api';
-import { unifiedResponse } from 'uni-response';
 
 import { MAX_ITEMS_PER_WORKSPACE } from '@/constants/config.constants';
-import { ERROR, SUCCESS } from '@/constants/messages';
+import { AccessForbiddenError, ItemLimitExceededError } from '@/domain-errors';
 import { WorkspaceRepository } from '@/features/user/repositories/workspace.repository';
 
 import { ItemRepository } from '../repositories/item.repository';
@@ -30,7 +35,7 @@ export class ItemSyncService {
     const existing = await this.itemRepository.findGlobalById(item.id);
 
     if (existing && existing.workspaceId !== workspaceId) {
-      throw Object.assign(new Error(ERROR.ACCESS_FORBIDDEN), { statusCode: 403 });
+      throw new AccessForbiddenError();
     }
 
     const clientUpdated = toTime(item.updatedAt);
@@ -42,10 +47,7 @@ export class ItemSyncService {
     } else if (!item.deletedAt) {
       const liveCount = await this.itemRepository.countLive(workspaceId);
       if (liveCount >= MAX_ITEMS_PER_WORKSPACE) {
-        throw Object.assign(new Error(ERROR.ITEM_LIMIT_EXCEEDED), {
-          statusCode: 409,
-          code: 'ITEM_LIMIT_EXCEEDED',
-        });
+        throw new ItemLimitExceededError();
       }
     }
 
@@ -53,36 +55,36 @@ export class ItemSyncService {
     return true;
   }
 
-  async list(workspaceId: string) {
+  async list(workspaceId: string): Promise<ListItemsPayload> {
     await this.touch(workspaceId);
     const rows = await this.itemRepository.listLive(workspaceId);
-    return unifiedResponse(true, SUCCESS.ITEMS_LIST_OK, {
+    return {
       items: rows.map(row => this.itemRepository.toDto(row)),
-    });
+    };
   }
 
-  async upsert(workspaceId: string, item: Item) {
-    const written = await this.applyClientItem(workspaceId, item);
+  async upsert(workspaceId: string, item: Item): Promise<UpsertItemPayload> {
+    await this.applyClientItem(workspaceId, item);
     await this.touch(workspaceId);
     const rows = await this.itemRepository.findByIds(workspaceId, [item.id]);
     const saved = rows[0] ? this.itemRepository.toDto(rows[0]) : item;
-    return unifiedResponse(true, SUCCESS.ITEMS_UPSERT_OK, { item: saved, written });
+    return { item: saved };
   }
 
-  async bootstrap(workspaceId: string, input: BootstrapItemsInput) {
+  async bootstrap(workspaceId: string, input: BootstrapItemsInput): Promise<BootstrapItemsPayload> {
     const acceptedIds: string[] = [];
     for (const item of input.items) {
       const written = await this.applyClientItem(workspaceId, item);
       if (written) acceptedIds.push(item.id);
     }
     await this.touch(workspaceId);
-    return unifiedResponse(true, SUCCESS.ITEMS_BOOTSTRAP_OK, {
+    return {
       acceptedIds,
       cursor: input.cursor ?? null,
-    });
+    };
   }
 
-  async manifest(workspaceId: string, input: ManifestItemsInput) {
+  async manifest(workspaceId: string, input: ManifestItemsInput): Promise<ManifestDiff> {
     await this.touch(workspaceId);
     const serverRows = await this.itemRepository.listManifest(workspaceId);
     const serverById = new Map(serverRows.map(r => [r.id, r] as const));
@@ -124,27 +126,27 @@ export class ItemSyncService {
       }
     }
 
-    return unifiedResponse(true, SUCCESS.ITEMS_MANIFEST_OK, {
+    return {
       pull,
       pushNeeded,
       tombstones,
-    });
+    };
   }
 
-  async pull(workspaceId: string, input: PullItemsInput) {
+  async pull(workspaceId: string, input: PullItemsInput): Promise<PullItemsPayload> {
     await this.touch(workspaceId);
     const rows = await this.itemRepository.findByIds(workspaceId, input.ids);
     const items = rows.map(row => this.itemRepository.toDto(row));
-    return unifiedResponse(true, SUCCESS.ITEMS_PULL_OK, { items });
+    return { items };
   }
 
-  async push(workspaceId: string, input: PushItemsInput) {
+  async push(workspaceId: string, input: PushItemsInput): Promise<PushItemsPayload> {
     const acceptedIds: string[] = [];
     for (const item of input.items) {
       const written = await this.applyClientItem(workspaceId, item);
       if (written) acceptedIds.push(item.id);
     }
     await this.touch(workspaceId);
-    return unifiedResponse(true, SUCCESS.ITEMS_PUSH_OK, { acceptedIds });
+    return { acceptedIds };
   }
 }

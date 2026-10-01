@@ -1,10 +1,9 @@
 import { AppTheme } from '@/constants/theme';
 import {
+  client,
   getWorkspaceSession,
-  listItems,
   runSyncExclusive,
   scheduleSyncAfterLocalChange,
-  upsertItem,
   upsertLocalItem,
 } from '@/features/workspace-sync';
 import { ThemedText } from '@/shared/ui/themed-text';
@@ -32,7 +31,7 @@ export default function ItemsScreen() {
         return;
       }
       await runSyncExclusive();
-      const remote = await listItems();
+      const remote = await client.items.list();
       setItems(remote.items);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load items');
@@ -55,7 +54,7 @@ export default function ItemsScreen() {
     };
     try {
       await upsertLocalItem(item);
-      await upsertItem(item);
+      await client.items.upsert(item);
       scheduleSyncAfterLocalChange();
       setTitle('');
       setBody('');

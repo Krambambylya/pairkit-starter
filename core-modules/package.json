@@ -48,7 +48,9 @@
     ]
   },
   "dependencies": {
-    "zod": "^4.4.3"
+    "@orpc/client": "2.0.0-beta.40",
+    "@orpc/contract": "2.0.0-beta.40",
+    "zod": "^4.6.4"
   },
   "devDependencies": {
     "tsup": "^8.5.1",
