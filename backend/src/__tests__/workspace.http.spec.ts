@@ -1,7 +1,16 @@
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
+
+import { createORPCClient } from '@orpc/client';
+import { RPCLink } from '@orpc/client/fetch';
+import type { RouterContractClient } from '@orpc/contract';
+import { contract } from '@pairkit/core/api';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 
 import { app } from '../app';
+
+type Rpc = RouterContractClient<typeof contract>;
 
 const requireDb = async (skip: (reason?: string) => void) => {
   const ready = await request(app).get('/ready');
@@ -10,96 +19,116 @@ const requireDb = async (skip: (reason?: string) => void) => {
   }
 };
 
-describe('workspace + items HTTP (postgres)', () => {
+const rpcClient = async () => {
+  const server = createServer(app);
+  await new Promise<void>(resolve => {
+    server.listen(0, '127.0.0.1', () => resolve());
+  });
+  const { port } = server.address() as AddressInfo;
+  let accessToken: string | null = null;
+  const client: Rpc = createORPCClient(
+    new RPCLink({
+      origin: `http://127.0.0.1:${port}`,
+      url: '/rpc',
+      headers: () => (accessToken ? { authorization: `Bearer ${accessToken}` } : {}),
+    }),
+  );
+  return {
+    client,
+    setAccessToken: (token: string) => {
+      accessToken = token;
+    },
+    close: () =>
+      new Promise<void>((resolve, reject) => {
+        server.close(error => (error ? reject(error) : resolve()));
+      }),
+  };
+};
+
+describe('workspace + items RPC (postgres)', () => {
+  it('creates a workspace and lists items for that access token', async ({ skip }) => {
+    await requireDb(skip);
+    const rpc = await rpcClient();
+    try {
+      const created = await rpc.client.workspace.create({ deviceName: 'web' });
+      rpc.setAccessToken(created.accessToken);
+
+      const item = {
+        id: `pk_test_${Date.now().toString(16)}`,
+        title: 'Hello',
+        body: 'from integration test',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      await rpc.client.items.upsert(item);
+      const listed = await rpc.client.items.list();
+      expect(listed.items.some(row => row.id === item.id)).toBe(true);
+    } finally {
+      await rpc.close();
+    }
+  });
+
   it('only one concurrent join succeeds for a pairing code', async ({ skip }) => {
     await requireDb(skip);
-    const created = await request(app).post('/v1/workspaces/create').send({ deviceName: 'web' });
-    expect(created.status).toBe(201);
-    const pairingCode = created.body.data.pairingCode as string;
-
-    const [joinA, joinB] = await Promise.all([
-      request(app).post('/v1/workspaces/join').send({ pairingCode, deviceName: 'phone-a' }),
-      request(app).post('/v1/workspaces/join').send({ pairingCode, deviceName: 'phone-b' }),
-    ]);
-
-    expect([joinA.status, joinB.status].sort()).toEqual([201, 400]);
+    const rpc = await rpcClient();
+    try {
+      const created = await rpc.client.workspace.create({ deviceName: 'web' });
+      const joined = await Promise.allSettled([
+        rpc.client.workspace.join({ pairingCode: created.pairingCode, deviceName: 'phone-a' }),
+        rpc.client.workspace.join({ pairingCode: created.pairingCode, deviceName: 'phone-b' }),
+      ]);
+      expect(joined.filter(result => result.status === 'fulfilled')).toHaveLength(1);
+      expect(joined.filter(result => result.status === 'rejected')).toHaveLength(1);
+    } finally {
+      await rpc.close();
+    }
   });
 
-  it('rotates a refresh token and rejects replay by revoking the device', async ({ skip }) => {
+  it('rotates a refresh token and rejects replay', async ({ skip }) => {
     await requireDb(skip);
-    const created = await request(app).post('/v1/workspaces/create').send({ deviceName: 'web' });
-    const refreshToken = created.body.data.refreshToken as string;
+    const rpc = await rpcClient();
+    try {
+      const created = await rpc.client.workspace.create({ deviceName: 'web' });
+      const rotated = await rpc.client.workspace.refresh({ refreshToken: created.refreshToken });
+      expect(rotated.accessToken).toEqual(expect.any(String));
 
-    const rotated = await request(app).post('/v1/workspaces/refresh').send({ refreshToken });
-    expect(rotated.status).toBe(200);
-    expect(rotated.body.success).toBe(true);
-
-    const replay = await request(app).post('/v1/workspaces/refresh').send({ refreshToken });
-    expect(replay.status).toBe(401);
-
-    const afterReuse = await request(app)
-      .post('/v1/workspaces/refresh')
-      .send({ refreshToken: rotated.body.data.refreshToken });
-    expect(afterReuse.status).toBe(401);
-  });
-
-  it('upserts and lists items with a bearer access token', async ({ skip }) => {
-    await requireDb(skip);
-    const created = await request(app).post('/v1/workspaces/create').send({ deviceName: 'web' });
-    expect(created.status).toBe(201);
-    const accessToken = created.body.data.accessToken as string;
-
-    const item = {
-      id: `pk_test_${Date.now().toString(16)}`,
-      title: 'Hello',
-      body: 'from integration test',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    const saved = await request(app)
-      .post('/v1/items')
-      .set('Authorization', `Bearer ${accessToken}`)
-      .send(item);
-    expect(saved.status).toBe(200);
-    expect(saved.body.success).toBe(true);
-
-    const listed = await request(app)
-      .get('/v1/items')
-      .set('Authorization', `Bearer ${accessToken}`);
-    expect(listed.status).toBe(200);
-    expect(listed.body.data.items.some((row: { id: string }) => row.id === item.id)).toBe(true);
+      await expect(
+        rpc.client.workspace.refresh({ refreshToken: created.refreshToken }),
+      ).rejects.toMatchObject({ code: 'INVALID_REFRESH_TOKEN' });
+      await expect(
+        rpc.client.workspace.refresh({ refreshToken: rotated.refreshToken }),
+      ).rejects.toMatchObject({ code: 'INVALID_REFRESH_TOKEN' });
+    } finally {
+      await rpc.close();
+    }
   });
 
   it('create → join → item is visible on the second device', async ({ skip }) => {
     await requireDb(skip);
-    const created = await request(app).post('/v1/workspaces/create').send({ deviceName: 'web' });
-    expect(created.status).toBe(201);
-    const pairingCode = created.body.data.pairingCode as string;
-    const webToken = created.body.data.accessToken as string;
+    const web = await rpcClient();
+    const phone = await rpcClient();
+    try {
+      const created = await web.client.workspace.create({ deviceName: 'web' });
+      web.setAccessToken(created.accessToken);
+      const joined = await phone.client.workspace.join({
+        pairingCode: created.pairingCode,
+        deviceName: 'phone',
+      });
+      phone.setAccessToken(joined.accessToken);
 
-    const joined = await request(app)
-      .post('/v1/workspaces/join')
-      .send({ pairingCode, deviceName: 'phone' });
-    expect(joined.status).toBe(201);
-    const phoneToken = joined.body.data.accessToken as string;
-
-    const item = {
-      id: `pk_pair_${Date.now().toString(16)}`,
-      title: 'Paired note',
-      body: 'visible on both devices',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    const saved = await request(app)
-      .post('/v1/items')
-      .set('Authorization', `Bearer ${webToken}`)
-      .send(item);
-    expect(saved.status).toBe(200);
-
-    const listed = await request(app).get('/v1/items').set('Authorization', `Bearer ${phoneToken}`);
-    expect(listed.status).toBe(200);
-    expect(listed.body.data.items.some((row: { id: string }) => row.id === item.id)).toBe(true);
+      const item = {
+        id: `pk_pair_${Date.now().toString(16)}`,
+        title: 'Paired note',
+        body: 'visible on both devices',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      await web.client.items.upsert(item);
+      const listed = await phone.client.items.list();
+      expect(listed.items.some(row => row.id === item.id)).toBe(true);
+    } finally {
+      await web.close();
+      await phone.close();
+    }
   });
 });

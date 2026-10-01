@@ -7,10 +7,9 @@ import type { Item } from '@pairkit/core/api';
 import { Button, ButtonLink } from '@/components/ui/button';
 import { Panel } from '@/components/ui/panel';
 import {
-  listItems,
+  client,
   runSyncExclusive,
   scheduleSyncAfterLocalChange,
-  upsertItem,
   upsertLocalItem,
 } from '@/lib/workspace-sync/client';
 import { useWorkspaceSession } from '@/lib/workspace-sync/session';
@@ -29,7 +28,7 @@ const loadItems = (version: number): Promise<Item[]> => {
   if (cached) return cached;
   const pending = (async () => {
     await runSyncExclusive();
-    const remote = await listItems();
+    const remote = await client.items.list();
     return remote.items;
   })();
   itemsPromises.set(version, pending);
@@ -58,7 +57,7 @@ function SignedInItems({ version, onSaved }: { version: number; onSaved: () => v
     };
     try {
       await upsertLocalItem(item);
-      await upsertItem(item);
+      await client.items.upsert(item);
       scheduleSyncAfterLocalChange();
       setTitle('');
       setBody('');
@@ -134,7 +133,7 @@ export function ItemsClient() {
     return (
       <Panel>
         <p className="text-sm leading-relaxed text-muted">
-          Pair a workspace first, then items will fetch from /v1/items.
+          Pair a workspace first, then items sync from this device.
         </p>
         <ButtonLink href="/sync" className="mt-4">
           Open sync hub

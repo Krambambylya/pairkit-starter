@@ -49,21 +49,21 @@ if ! curl -fsS "$API_URL/ready" >/dev/null 2>&1; then
   fi
 fi
 
-# Pairkit mounts /v1/items. A 404 here usually means another API is bound to the same port.
+# Pairkit mounts /rpc. A 404 here usually means another API is bound to the same port.
 items_code="$(
-  curl -sS -o /dev/null -w '%{http_code}' -X POST "$API_URL/v1/items/manifest" \
+  curl -sS -o /dev/null -w '%{http_code}' -X POST "$API_URL/rpc/items/manifest" \
     -H 'Content-Type: application/json' \
-    -d '{"entries":[]}' || true
+    -d '{"json":{"entries":[]}}' || true
 )"
 if [[ "$items_code" == "404" ]]; then
-  echo "smoke: $API_URL/v1/items/manifest returned 404. That is not Pairkit (stop the other process on that port, then pnpm dev:backend)." >&2
+  echo "smoke: $API_URL/rpc/items/manifest returned 404. That is not Pairkit (stop the other process on that port, then pnpm dev:backend)." >&2
   exit 1
 fi
-if [[ "$items_code" != "401" && "$items_code" != "200" ]]; then
-  echo "smoke: unexpected status $items_code from $API_URL/v1/items/manifest" >&2
+if [[ "$items_code" != "401" && "$items_code" != "400" && "$items_code" != "200" ]]; then
+  echo "smoke: unexpected status $items_code from $API_URL/rpc/items/manifest" >&2
   exit 1
 fi
-echo "smoke: Pairkit items API ok ($items_code)"
+echo "smoke: Pairkit RPC ok ($items_code)"
 if ! curl -fsS "$WEB_URL" >/dev/null 2>&1; then
   if [[ "${CI:-}" == "true" ]]; then
     echo "smoke: starting web"

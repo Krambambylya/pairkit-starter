@@ -1,6 +1,6 @@
 /** @type {import('dependency-cruiser').IConfiguration} */
 // Cross-feature imports are not forbidden here. features/items → features/user
-// (WorkspaceRepository in item-sync.service.ts and items.routes.ts) is an allowed
+// (WorkspaceRepository in item-sync.service.ts) is an allowed
 // exception, not a refactor target.
 module.exports = {
   forbidden: [

@@ -1,5 +1,13 @@
-export type { ApiEnvelope } from './envelope';
-export { unwrapEnvelope } from './envelope';
+export { contract } from './contract';
+
+export {
+  contractErrorBodies,
+  contractErrorStatus,
+  rateLimitErrorDataSchema,
+  rateLimitErrors,
+  type ContractErrorCode,
+  type RateLimitErrorData,
+} from './errors';
 
 export { isoDateTime, itemSchema, type Item } from './item';
 
@@ -18,10 +26,6 @@ export {
   type CreateWorkspaceResult,
   type TokenPair,
   type PairingCodePayload,
-  type CreateWorkspaceEnvelope,
-  type TokenPairEnvelope,
-  type RefreshEnvelope,
-  type IssuePairingCodeEnvelope,
 } from './workspace';
 
 export {
@@ -31,6 +35,7 @@ export {
   pullItemsSchema,
   pushItemsSchema,
   upsertItemSchema,
+  upsertItemPayloadSchema,
   manifestDiffSchema,
   bootstrapItemsPayloadSchema,
   pullItemsPayloadSchema,
@@ -46,10 +51,5 @@ export {
   type PullItemsPayload,
   type ListItemsPayload,
   type PushItemsPayload,
-  type ManifestEnvelope,
-  type BootstrapItemsEnvelope,
-  type PullItemsEnvelope,
-  type ListItemsEnvelope,
-  type PushItemsEnvelope,
-  type ItemEnvelope,
+  type UpsertItemPayload,
 } from './items-sync';

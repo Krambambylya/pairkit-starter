@@ -1,6 +1,5 @@
 import { z } from 'zod';
 
-import type { ApiEnvelope } from './envelope';
 import { isoDateTime, itemSchema } from './item';
 
 export const bootstrapItemsSchema = z.object({
@@ -32,6 +31,10 @@ export const pushItemsSchema = z.object({
 });
 
 export const upsertItemSchema = itemSchema;
+
+export const upsertItemPayloadSchema = z.object({
+  item: itemSchema,
+});
 
 export const manifestDiffSchema = z.object({
   pull: z.array(z.string()),
@@ -67,10 +70,4 @@ export type BootstrapItemsPayload = z.infer<typeof bootstrapItemsPayloadSchema>;
 export type PullItemsPayload = z.infer<typeof pullItemsPayloadSchema>;
 export type ListItemsPayload = z.infer<typeof listItemsPayloadSchema>;
 export type PushItemsPayload = z.infer<typeof pushItemsPayloadSchema>;
-
-export type ManifestEnvelope = ApiEnvelope<ManifestDiff>;
-export type BootstrapItemsEnvelope = ApiEnvelope<BootstrapItemsPayload>;
-export type PullItemsEnvelope = ApiEnvelope<PullItemsPayload>;
-export type ListItemsEnvelope = ApiEnvelope<ListItemsPayload>;
-export type PushItemsEnvelope = ApiEnvelope<PushItemsPayload>;
-export type ItemEnvelope = ApiEnvelope<{ item: z.infer<typeof itemSchema> }>;
+export type UpsertItemPayload = z.infer<typeof upsertItemPayloadSchema>;

@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { unwrapEnvelope } from '@pairkit/core/api';
 import { defaultWorkspaceSession } from '@pairkit/core/client';
 
 import { envSchema } from '../env';
@@ -26,18 +25,6 @@ describe('envSchema', () => {
       NEXT_PUBLIC_API_URL: 'http://localhost:4000',
     });
     expect(result.success).toBe(true);
-  });
-});
-
-describe('unwrapEnvelope', () => {
-  it('returns data when success is true', () => {
-    expect(unwrapEnvelope({ success: true, message: 'ok', data: { id: '1' } })).toEqual({
-      id: '1',
-    });
-  });
-
-  it('throws the envelope message when unsuccessful', () => {
-    expect(() => unwrapEnvelope({ success: false, message: 'nope' })).toThrow('nope');
   });
 });
 

@@ -15,4 +15,4 @@ export const REFRESH_TOKEN_EXPIRES_IN = '30d';
 
 export const MAX_ITEMS_PER_WORKSPACE = 150;
 
-export const ITEMS_JSON_BODY_LIMIT = '2mb';
+export const ITEMS_JSON_BODY_LIMIT_BYTES = 2 * 1024 * 1024;

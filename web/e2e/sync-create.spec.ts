@@ -8,7 +8,7 @@ test.describe('sync smoke', () => {
     await expect(create).toBeVisible({ timeout: 60_000 });
 
     const createResponsePromise = page.waitForResponse(
-      res => res.url().includes('/v1/workspaces/create') && res.request().method() === 'POST',
+      res => res.url().includes('/rpc/workspace/create') && res.request().method() === 'POST',
       { timeout: 30_000 },
     );
     await create.click();

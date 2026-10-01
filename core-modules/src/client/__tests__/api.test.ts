@@ -1,26 +1,38 @@
+import { ORPCError, safe } from '@orpc/client';
 import { describe, expect, test } from 'vitest';
 
-import { createWorkspaceApi } from '../api';
-import { ApiRequestError, isRateLimitError, rateLimitRetryAfterSec } from '../errors';
+import { createPairkitRpc } from '../orpc';
+import { isRateLimitError, rateLimitRetryAfterSec } from '../errors';
 import { defaultWorkspaceSession, type WorkspaceSession } from '../session';
 
-const jsonResponse = (body: unknown, init: { status?: number; headers?: HeadersInit } = {}) =>
-  new Response(JSON.stringify(body), {
-    status: init.status ?? 200,
-    headers: { 'Content-Type': 'application/json', ...init.headers },
+const rpcResponse = (body: unknown, status = 200) =>
+  new Response(JSON.stringify({ json: body }), {
+    status,
+    headers: { 'content-type': 'application/json' },
   });
 
-describe('createWorkspaceApi', () => {
-  test('unwraps create workspace and retries once after a 401 refresh', async () => {
+const rpcError = (code: string, message: string, status: number, data?: unknown) =>
+  rpcResponse(
+    {
+      defined: false,
+      code,
+      message,
+      ...(data === undefined ? {} : { data }),
+    },
+    status,
+  );
+
+describe('createPairkitRpc', () => {
+  test('shares one refresh across parallel unauthorized calls', async () => {
     let session: WorkspaceSession = {
       ...defaultWorkspaceSession(),
       accessToken: 'expired',
       refreshToken: 'refresh-1',
       syncState: 'ready',
     };
-    const calls: string[] = [];
+    let refreshes = 0;
 
-    const api = createWorkspaceApi({
+    const rpc = createPairkitRpc({
       getBaseUrl: () => 'http://api.test',
       getSession: async () => session,
       patchSession: async patch => {
@@ -28,61 +40,74 @@ describe('createWorkspaceApi', () => {
       },
       fetch: async (input, init) => {
         const url = String(input);
-        calls.push(`${init?.method ?? 'GET'} ${url}`);
-        if (url.endsWith('/v1/workspaces/refresh')) {
-          return jsonResponse({
-            success: true,
-            message: 'ok',
-            data: { accessToken: 'next-access', refreshToken: 'next-refresh' },
-          });
+        const auth = new Headers(init?.headers).get('authorization');
+        if (url.endsWith('/rpc/workspace/refresh')) {
+          refreshes += 1;
+          return rpcResponse({ accessToken: 'next-access', refreshToken: 'next-refresh' });
         }
-        if (url.endsWith('/v1/items') && init?.method === 'GET') {
-          const auth = new Headers(init.headers).get('Authorization');
+        if (url.endsWith('/rpc/items/list')) {
           if (auth !== 'Bearer next-access') {
-            return jsonResponse({ success: false, message: 'unauthorized' }, { status: 401 });
+            return rpcError('UNAUTHORIZED', 'Unauthorized', 401);
           }
-          return jsonResponse({
-            success: true,
-            message: 'ok',
-            data: { items: [] },
-          });
+          return rpcResponse({ items: [] });
         }
         throw new Error(`unexpected ${url}`);
       },
     });
 
-    const listed = await api.listItems();
-    expect(listed.items).toEqual([]);
+    const listed = await Promise.all([rpc.items.list(), rpc.items.list(), rpc.items.list()]);
+    expect(listed.map(page => page.items)).toEqual([[], [], []]);
+    expect(refreshes).toBe(1);
     expect(session.accessToken).toBe('next-access');
-    expect(calls).toEqual([
-      'GET http://api.test/v1/items',
-      'POST http://api.test/v1/workspaces/refresh',
-      'GET http://api.test/v1/items',
-    ]);
   });
 
-  test('throws ApiRequestError with Retry-After on 429', async () => {
-    const api = createWorkspaceApi({
+  test('does not refresh again when workspace.refresh fails', async () => {
+    let refreshes = 0;
+    const rpc = createPairkitRpc({
+      getBaseUrl: () => 'http://api.test',
+      getSession: async () => ({
+        ...defaultWorkspaceSession(),
+        accessToken: 'expired',
+        refreshToken: 'refresh-1',
+      }),
+      patchSession: async () => undefined,
+      fetch: async input => {
+        const url = String(input);
+        if (url.endsWith('/rpc/workspace/refresh')) {
+          refreshes += 1;
+          return rpcError('INVALID_REFRESH_TOKEN', 'Invalid refresh token', 401);
+        }
+        if (url.endsWith('/rpc/items/list')) {
+          return rpcError('UNAUTHORIZED', 'Unauthorized', 401);
+        }
+        throw new Error(`unexpected ${url}`);
+      },
+    });
+
+    await expect(rpc.items.list()).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
+    expect(refreshes).toBe(1);
+  });
+
+  test('reads TOO_MANY_REQUESTS retryAfter', async () => {
+    const rpc = createPairkitRpc({
       getBaseUrl: () => 'http://api.test',
       getSession: async () => defaultWorkspaceSession(),
       patchSession: async () => undefined,
       fetch: async () =>
-        jsonResponse(
-          { success: false, message: 'Too many attempts' },
-          { status: 429, headers: { 'Retry-After': '30' } },
-        ),
+        rpcError('TOO_MANY_REQUESTS', 'Too many attempts, please try again later', 429, {
+          retryAfter: 30,
+        }),
     });
 
-    const error = await api.createWorkspace('web').catch(err => err);
-    expect(error).toBeInstanceOf(ApiRequestError);
-    expect(error.status).toBe(429);
-    expect(error.retryAfterSec).toBe(30);
+    const [error, data] = await safe(rpc.workspace.create({ deviceName: 'web' }));
+    expect(data).toBeUndefined();
     expect(isRateLimitError(error)).toBe(true);
     expect(rateLimitRetryAfterSec(error)).toBe(30);
+    expect(error).toBeInstanceOf(ORPCError);
   });
 
   test('rejects an empty API base URL before fetching', async () => {
-    const api = createWorkspaceApi({
+    const rpc = createPairkitRpc({
       getBaseUrl: () => '',
       getSession: async () => defaultWorkspaceSession(),
       patchSession: async () => undefined,
@@ -91,6 +116,8 @@ describe('createWorkspaceApi', () => {
       },
     });
 
-    await expect(api.createWorkspace('web')).rejects.toThrow('API URL is not configured');
+    await expect(rpc.workspace.create({ deviceName: 'web' })).rejects.toThrow(
+      'API URL is not configured',
+    );
   });
 });

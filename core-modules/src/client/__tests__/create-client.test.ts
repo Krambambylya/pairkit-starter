@@ -21,12 +21,10 @@ describe('createPairkitClient', () => {
       },
       fetch: async input => {
         const url = String(input);
-        if (url.endsWith('/v1/workspaces/create')) {
+        if (url.endsWith('/rpc/workspace/create')) {
           return new Response(
             JSON.stringify({
-              success: true,
-              message: 'ok',
-              data: {
+              json: {
                 recoveryKey: 'r'.repeat(32),
                 pairingCode: '123456',
                 accessToken: 'access',

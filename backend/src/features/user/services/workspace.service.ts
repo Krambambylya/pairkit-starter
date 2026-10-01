@@ -1,13 +1,19 @@
 import type {
   CreateWorkspaceInput,
+  CreateWorkspaceResult,
   JoinWorkspaceInput,
+  PairingCodePayload,
   RecoverWorkspaceInput,
   RefreshWorkspaceInput,
+  TokenPair,
 } from '@pairkit/core/api';
-import { unifiedResponse } from 'uni-response';
 
 import { PAIRING_CODE_EXPIRES_IN, REFRESH_TOKEN_EXPIRES_IN } from '@/constants/config.constants';
-import { ERROR, SUCCESS } from '@/constants/messages';
+import {
+  InvalidPairingCodeError,
+  InvalidRecoveryKeyError,
+  InvalidRefreshTokenError,
+} from '@/domain-errors';
 import { DeviceRepository } from '@/features/user/repositories/device.repository';
 import { PairingCodeRepository } from '@/features/user/repositories/pairing-code.repository';
 import { RefreshTokenRepository } from '@/features/user/repositories/refresh-token.repository';
@@ -33,7 +39,7 @@ export class WorkspaceService {
     private readonly refreshTokenRepository: RefreshTokenRepository,
   ) {}
 
-  async createWorkspace(input: CreateWorkspaceInput) {
+  async createWorkspace(input: CreateWorkspaceInput): Promise<CreateWorkspaceResult> {
     const recoveryKey = generateRecoveryKey();
     const pairingCode = generatePairingCode();
     const recoveryKeyHash = hashSecret(recoveryKey);
@@ -56,22 +62,22 @@ export class WorkspaceService {
       await this.workspaceRepository.createWorkspace(repositoryInput);
     const accessToken = generateAccessToken({ workspaceId, deviceId });
 
-    return unifiedResponse(true, SUCCESS.WORKSPACE_CREATED, {
+    return {
       recoveryKey,
       pairingCode,
       accessToken,
       refreshToken,
-    });
+    };
   }
 
-  async joinWorkspace(input: JoinWorkspaceInput) {
+  async joinWorkspace(input: JoinWorkspaceInput): Promise<TokenPair> {
     const { pairingCode, deviceName } = input;
     const pairingCodeHash = hashPairingCode(pairingCode);
 
     return this.prisma.$transaction(async tx => {
       const claimed = await this.pairingCodeRepository.claimUnusedByHash(pairingCodeHash, tx);
       if (!claimed) {
-        return null;
+        throw new InvalidPairingCodeError();
       }
 
       const { deviceId } = await this.deviceRepository.joinDevice(
@@ -97,10 +103,7 @@ export class WorkspaceService {
 
       const accessToken = generateAccessToken({ workspaceId: claimed.workspaceId, deviceId });
 
-      return unifiedResponse(true, SUCCESS.WORKSPACE_JOINED, {
-        accessToken,
-        refreshToken,
-      });
+      return { accessToken, refreshToken };
     });
   }
 
@@ -108,13 +111,13 @@ export class WorkspaceService {
    * Re-attach a device using the long-lived recovery key shown once at workspace create.
    * Does not revoke existing devices — issues a new device + token pair.
    */
-  async recoverWorkspace(input: RecoverWorkspaceInput) {
+  async recoverWorkspace(input: RecoverWorkspaceInput): Promise<TokenPair> {
     const recoveryKey = input.recoveryKey.replace(/\s+/g, '');
     const recoveryKeyHash = hashSecret(recoveryKey);
     const workspaceId = await this.workspaceRepository.findIdByRecoveryKeyHash(recoveryKeyHash);
 
     if (!workspaceId) {
-      return null;
+      throw new InvalidRecoveryKeyError();
     }
 
     return this.prisma.$transaction(async tx => {
@@ -140,19 +143,19 @@ export class WorkspaceService {
         tx,
       );
 
-      return unifiedResponse(true, SUCCESS.WORKSPACE_RECOVERED, { accessToken, refreshToken });
+      return { accessToken, refreshToken };
     });
   }
 
-  async refresh(input: RefreshWorkspaceInput) {
+  async refresh(input: RefreshWorkspaceInput): Promise<TokenPair> {
     const tokenHash = hashSecret(input.refreshToken);
     const stored = await this.refreshTokenRepository.findByHash(tokenHash);
 
     if (!stored?.deviceId || !stored.workspaceId) {
-      return unifiedResponse(false, ERROR.INVALID_REFRESH_TOKEN);
+      throw new InvalidRefreshTokenError();
     }
 
-    return this.prisma.$transaction(async tx => {
+    const rotated = await this.prisma.$transaction(async tx => {
       const claimed = await this.refreshTokenRepository.claimValidById(stored.id, tx);
       if (claimed === 0) {
         const latest = await this.refreshTokenRepository.findById(stored.id, tx);
@@ -160,7 +163,7 @@ export class WorkspaceService {
           await this.deviceRepository.revoke(stored.deviceId, tx);
           await this.refreshTokenRepository.revokeAllForDevice(stored.deviceId, tx);
         }
-        return unifiedResponse(false, ERROR.INVALID_REFRESH_TOKEN);
+        return null;
       }
 
       const device = await this.deviceRepository.findActive(
@@ -169,7 +172,7 @@ export class WorkspaceService {
         tx,
       );
       if (!device) {
-        return unifiedResponse(false, ERROR.INVALID_REFRESH_TOKEN);
+        return null;
       }
 
       const accessToken = generateAccessToken({
@@ -192,11 +195,17 @@ export class WorkspaceService {
 
       await this.workspaceRepository.touchLastUsedAt(stored.workspaceId, tx);
 
-      return unifiedResponse(true, SUCCESS.REFRESH_SUCCESSFUL, { accessToken, refreshToken });
+      return { accessToken, refreshToken };
     });
+
+    if (!rotated) {
+      throw new InvalidRefreshTokenError();
+    }
+
+    return rotated;
   }
 
-  async issuePairingCode(workspaceId: string) {
+  async issuePairingCode(workspaceId: string): Promise<PairingCodePayload> {
     const pairingCode = generatePairingCode();
     const pairingCodeHash = hashPairingCode(pairingCode);
     const expiresAt = new Date(Date.now() + durationToMs(PAIRING_CODE_EXPIRES_IN));
@@ -214,9 +223,9 @@ export class WorkspaceService {
       await this.workspaceRepository.touchLastUsedAt(workspaceId, tx);
     });
 
-    return unifiedResponse(true, SUCCESS.PAIRING_CODE_ISSUED, {
+    return {
       pairingCode,
       expiresAt: expiresAt.toISOString(),
-    });
+    };
   }
 }

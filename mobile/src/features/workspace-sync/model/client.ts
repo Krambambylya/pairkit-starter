@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { fetch } from 'expo/fetch';
 import { createPairkitClient, type JsonKvStore } from '@pairkit/core/client';
 import { Platform } from 'react-native';
 
@@ -21,10 +22,11 @@ const deviceName = Platform.select({
   default: 'Pairkit Mobile',
 }) as string;
 
-const client = createPairkitClient({
+const pairkit = createPairkitClient({
   deviceName,
   getBaseUrl: getApiBaseUrl,
   kv,
+  fetch,
   session: {
     getSession: getWorkspaceSession,
     patchSession: patchWorkspaceSession,
@@ -32,17 +34,17 @@ const client = createPairkitClient({
   },
 });
 
-export const enableSyncByCreate = client.enableSyncByCreate;
-export const enableSyncByJoin = client.enableSyncByJoin;
-export const enableSyncByRecover = client.enableSyncByRecover;
-export const disableSyncLocally = client.disableSyncLocally;
-export const refreshPairingCode = client.refreshPairingCode;
-export const recordLocalItemDeleted = client.recordLocalItemDeleted;
-export const runBootstrap = client.runBootstrap;
-export const runIncrementalSync = client.runIncrementalSync;
-export const runSyncExclusive = client.runSyncExclusive;
-export const scheduleSyncAfterLocalChange = client.scheduleSyncAfterLocalChange;
-export const listItems = client.listItems;
-export const upsertItem = client.upsertItem;
-export const getSavedItems = client.getSavedItems;
-export const upsertLocalItem = client.upsertLocalItem;
+export const client = pairkit.client;
+
+export const enableSyncByCreate = pairkit.enableSyncByCreate;
+export const enableSyncByJoin = pairkit.enableSyncByJoin;
+export const enableSyncByRecover = pairkit.enableSyncByRecover;
+export const disableSyncLocally = pairkit.disableSyncLocally;
+export const refreshPairingCode = pairkit.refreshPairingCode;
+export const recordLocalItemDeleted = pairkit.recordLocalItemDeleted;
+export const runBootstrap = pairkit.runBootstrap;
+export const runIncrementalSync = pairkit.runIncrementalSync;
+export const runSyncExclusive = pairkit.runSyncExclusive;
+export const scheduleSyncAfterLocalChange = pairkit.scheduleSyncAfterLocalChange;
+export const getSavedItems = pairkit.getSavedItems;
+export const upsertLocalItem = pairkit.upsertLocalItem;

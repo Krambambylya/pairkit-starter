@@ -12,5 +12,5 @@ export default defineConfig({
   sourcemap: true,
   clean: true,
   splitting: false,
-  external: ['zod'],
+  external: ['zod', '@orpc/client', '@orpc/contract'],
 });

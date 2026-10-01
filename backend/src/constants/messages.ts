@@ -1,18 +1,3 @@
-export const SUCCESS = {
-  OK: 'ok',
-  WORKSPACE_CREATED: 'Workspace created',
-  WORKSPACE_JOINED: 'Workspace joined',
-  WORKSPACE_RECOVERED: 'Workspace recovered',
-  REFRESH_SUCCESSFUL: 'Token refreshed successfully',
-  PAIRING_CODE_ISSUED: 'Pairing code issued',
-  ITEMS_LIST_OK: 'Items listed',
-  ITEMS_UPSERT_OK: 'Item saved',
-  ITEMS_BOOTSTRAP_OK: 'Items bootstrap chunk accepted',
-  ITEMS_MANIFEST_OK: 'Items manifest diff ready',
-  ITEMS_PULL_OK: 'Items pulled',
-  ITEMS_PUSH_OK: 'Items pushed',
-};
-
 export const ERROR = {
   INTERNAL_SERVER_ERROR: 'Internal server error',
   BAD_REQUEST: 'Bad Request',

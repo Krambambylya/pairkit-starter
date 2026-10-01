@@ -1,6 +1,11 @@
+import type { RouterContractClient } from '@orpc/contract';
+
+import type { contract } from './api/contract';
 import type { ManifestDiff } from './api/items-sync';
-import type { CreateWorkspaceResult, IssuePairingCodeEnvelope, TokenPair } from './api/workspace';
 import type { Item } from './api/item';
+import type { CreateWorkspaceResult, TokenPair } from './api/workspace';
+
+export type PairkitContractClient = RouterContractClient<typeof contract>;
 
 export type { CreateWorkspaceResult, ManifestDiff, TokenPair, Item };
 
@@ -37,21 +42,6 @@ export type SyncSession = {
   lastSyncedAt?: string | null;
 };
 
-export type IssuePairingCodeResult = IssuePairingCodeEnvelope;
-
-export type SyncApi<TItem extends Item> = {
-  createWorkspace: (deviceName: string) => Promise<CreateWorkspaceResult>;
-  joinWorkspace: (pairingCode: string, deviceName: string) => Promise<TokenPair>;
-  recoverWorkspace: (recoveryKey: string, deviceName: string) => Promise<TokenPair>;
-  issuePairingCode: () => Promise<IssuePairingCodeResult>;
-  bootstrapItemsChunk: (chunk: TItem[], sentIds: string[]) => Promise<unknown>;
-  postManifest: (
-    entries: Array<{ id: string; updatedAt: string; deletedAt: string | null }>,
-  ) => Promise<{ data?: ManifestDiff }>;
-  pullItems: (ids: string[]) => Promise<{ data?: { items?: TItem[] } }>;
-  pushItems: (chunk: TItem[]) => Promise<unknown>;
-};
-
 export type SyncStorage<TItem extends Item, TSession extends SyncSession> = {
   getSavedItems: () => Promise<TItem[]>;
   writeItems: (items: TItem[]) => Promise<void>;
@@ -66,7 +56,7 @@ export type SyncStorage<TItem extends Item, TSession extends SyncSession> = {
 
 export type SyncEngineConfig<TItem extends Item, TSession extends SyncSession> = {
   deviceName: string;
-  api: SyncApi<TItem>;
+  api: PairkitContractClient;
   storage: SyncStorage<TItem, TSession>;
 };
 
@@ -131,7 +121,7 @@ export function createSyncEngine<TItem extends Item, TSession extends SyncSessio
     pairingCode: string;
     recoveryKey: string;
   }> => {
-    const created = await api.createWorkspace(deviceName);
+    const created = await api.workspace.create({ deviceName });
     await storage.patchSession({
       accessToken: created.accessToken,
       refreshToken: created.refreshToken,
@@ -145,7 +135,10 @@ export function createSyncEngine<TItem extends Item, TSession extends SyncSessio
   };
 
   const enableSyncByJoin = async (pairingCode: string): Promise<void> => {
-    const joined = await api.joinWorkspace(pairingCode.trim(), deviceName);
+    const joined = await api.workspace.join({
+      pairingCode: pairingCode.trim(),
+      deviceName,
+    });
     await storage.patchSession({
       accessToken: joined.accessToken,
       refreshToken: joined.refreshToken,
@@ -161,7 +154,7 @@ export function createSyncEngine<TItem extends Item, TSession extends SyncSessio
     if (key.length < 32) {
       throw new Error('Recovery key is too short');
     }
-    const recovered = await api.recoverWorkspace(key, deviceName);
+    const recovered = await api.workspace.recover({ recoveryKey: key, deviceName });
     await storage.patchSession({
       accessToken: recovered.accessToken,
       refreshToken: recovered.refreshToken,
@@ -181,15 +174,15 @@ export function createSyncEngine<TItem extends Item, TSession extends SyncSessio
     if (session.syncState === 'off' || !session.accessToken) {
       throw new Error('Sync is off');
     }
-    const result = await api.issuePairingCode();
-    if (!result.success || !result.data?.pairingCode) {
-      throw new Error(result.message || 'Could not refresh pairing code');
+    const issued = await api.workspace.issuePairingCode();
+    if (!issued.pairingCode) {
+      throw new Error('Could not refresh pairing code');
     }
     await storage.patchSession({
-      pendingPairingCode: result.data.pairingCode,
-      pendingPairingExpiresAt: result.data.expiresAt,
+      pendingPairingCode: issued.pairingCode,
+      pendingPairingExpiresAt: issued.expiresAt,
     } as Partial<TSession>);
-    return result.data;
+    return issued;
   };
 
   const recordLocalItemDeleted = async (id: string): Promise<void> => {
@@ -235,7 +228,10 @@ export function createSyncEngine<TItem extends Item, TSession extends SyncSessio
         done,
         total: total || chunks.length,
       });
-      await api.bootstrapItemsChunk(chunk, sentIds);
+      await api.items.bootstrap({
+        items: chunk,
+        cursor: { done: false, sentIds },
+      });
       sentIds.push(...chunk.map(item => item.id));
       done += chunk.length;
     }
@@ -276,9 +272,7 @@ export function createSyncEngine<TItem extends Item, TSession extends SyncSessio
       })),
     ];
 
-    const manifest = await api.postManifest(entries);
-    const diff = manifest.data;
-    if (!diff) return;
+    const diff = await api.items.manifest({ entries });
 
     if (diff.tombstones.length) {
       await applyRemoteTombstones(diff.tombstones);
@@ -289,8 +283,8 @@ export function createSyncEngine<TItem extends Item, TSession extends SyncSessio
       for (let i = 0; i < diff.pull.length; i += SYNC_PULL_BATCH_SIZE) {
         slices.push(diff.pull.slice(i, i + SYNC_PULL_BATCH_SIZE));
       }
-      const pulled = await Promise.all(slices.map(slice => api.pullItems(slice)));
-      const incoming = pulled.flatMap(payload => payload.data?.items ?? []);
+      const pulled = await Promise.all(slices.map(ids => api.items.pull({ ids })));
+      const incoming = pulled.flatMap(payload => payload.items) as TItem[];
       await mergePulledItems(incoming);
     }
 
@@ -302,7 +296,7 @@ export function createSyncEngine<TItem extends Item, TSession extends SyncSessio
         .map(tombstone => deletedItemStub<TItem>(tombstone));
       const pushChunks = chunkItems([...toPushLive, ...toPushDeleted]);
       for (const chunk of pushChunks) {
-        await api.pushItems(chunk);
+        await api.items.push({ items: chunk });
       }
     }
 

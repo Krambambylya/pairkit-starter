@@ -6,8 +6,9 @@ export {
   type WorkspaceSession,
   type SyncState,
 } from './session';
-export { ApiRequestError, isRateLimitError, rateLimitRetryAfterSec } from '@pairkit/core/client';
+export { isRateLimitError, rateLimitRetryAfterSec } from '@pairkit/core/client';
 export {
+  client,
   enableSyncByCreate,
   enableSyncByJoin,
   enableSyncByRecover,
@@ -17,8 +18,6 @@ export {
   runBootstrap,
   scheduleSyncAfterLocalChange,
   recordLocalItemDeleted,
-  listItems,
-  upsertItem,
   getSavedItems,
   upsertLocalItem,
 } from './client';

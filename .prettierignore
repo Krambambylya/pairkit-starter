@@ -12,3 +12,5 @@ mobile/android
 *.tsbuildinfo
 PLAN.md
 .cursor
+# next dev rewrites this file with its own line breaks
+web/AGENTS.md

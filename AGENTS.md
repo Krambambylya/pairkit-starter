@@ -11,7 +11,8 @@ Invariants for this monorepo. Setup and CI live in [CONTRIBUTING.md](./CONTRIBUT
   them.
 - New env var: `backend/src/config/env-schema.ts` and `backend/.env.example` in the same change.
   Runtime code reads `env` from `backend/src/config/env-config.ts`, not `process.env`.
-- Workspace HTTP responses use the envelope `{ success, message, data }`.
+- API procedures are an oRPC contract in `@pairkit/core/api`. Clients call `/rpc`. Probes
+  (`GET /live`, `GET /ready`, `GET /health`) stay ordinary GET routes and return plain JSON.
 
 `features/items` may import `WorkspaceRepository` from `features/user`. Do not add new cross-feature
 imports, and do not refactor that one in passing.

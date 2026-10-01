@@ -1,4 +1,5 @@
 export {
+  client,
   enableSyncByCreate,
   enableSyncByJoin,
   enableSyncByRecover,
@@ -7,8 +8,6 @@ export {
   runSyncExclusive,
   runBootstrap,
   scheduleSyncAfterLocalChange,
-  listItems,
-  upsertItem,
   getSavedItems,
   upsertLocalItem,
 } from './model/client';
